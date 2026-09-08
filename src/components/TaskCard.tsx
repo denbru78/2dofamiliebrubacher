@@ -58,7 +58,7 @@ export function TaskCard({ task, onEdit, compact = false, showHistory = false, s
   const completer = profileById(task.completed_by)
 
   return (
-    <div className={`task-row ${task.status === 'archived' ? 'archived' : ''}`}>
+    <div className={`task-row ${compact ? 'compact' : ''} ${task.status === 'archived' ? 'archived' : ''}`}>
       <button
         className={`check ${isDone ? 'done' : ''}`}
         onClick={onCheck}
@@ -75,13 +75,24 @@ export function TaskCard({ task, onEdit, compact = false, showHistory = false, s
           <button className={`task-title ${isDone ? 'done' : ''}`} onClick={() => openTask(task.id)}>
             {task.title}
           </button>
-          {isAdmin && onEdit && (
+          {compact && (
+            <span className="task-side-compact">
+              {assignees.slice(0, 2).map((p) => (
+                <Avatar key={p.id} profile={p} size="sm" />
+              ))}
+              {task.is_pool && !isDone && <span className="tag pool">Pool</span>}
+              {!isDone && due && <span className={`tag ${ds === 'today' ? 'today' : ds === 'overdue' ? 'overdue' : ''}`}>{due}</span>}
+              {settings.priorities_enabled && task.priority === 'urgent' && <span className="tag urgent">!</span>}
+            </span>
+          )}
+          {isAdmin && onEdit && !compact && (
             <button className="icon-btn" onClick={() => onEdit(task)} aria-label="Aufgabe bearbeiten" style={{ marginLeft: 'auto' }}>
               <IconEdit />
             </button>
           )}
         </div>
         {!compact && task.description && <div className="task-desc">{task.description}</div>}
+        {!compact && (
         <div className="task-meta">
           {task.is_pool && !isDone && <span className="tag pool">Familien-Pool</span>}
           {!isDone && due && <span className={`tag ${ds === 'today' ? 'today' : ds === 'overdue' ? 'overdue' : ''}`}>{due}</span>}
@@ -115,6 +126,7 @@ export function TaskCard({ task, onEdit, compact = false, showHistory = false, s
             </span>
           )}
         </div>
+        )}
         {(isDone || showHistory) && task.completed_at && (
           <div className="task-desc small">
             Erledigt von {completer?.display_name ?? 'unbekannt'} am {formatDateTime(task.completed_at)}

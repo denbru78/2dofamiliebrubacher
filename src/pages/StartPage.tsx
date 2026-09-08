@@ -136,7 +136,7 @@ export function StartPage({ go, onNew, onEdit }: Props) {
       )}
 
       <div className="card">
-        <div className="card-head">
+        <div className="card-head" style={{ marginBottom: 4 }}>
           <button className="card-title-btn" onClick={() => go('tasks', 'all', true)}>
             <h2>Heute wichtig</h2>
           </button>
@@ -147,11 +147,8 @@ export function StartPage({ go, onNew, onEdit }: Props) {
           )}
         </div>
         {important.length === 0 ? (
-          <div className="empty">
-            <div className="empty-icon">
-              <AppIcon name="sun" size={30} />
-            </div>
-            Hier ist gerade nichts offen.
+          <div className="empty compact">
+            <AppIcon name="sun" size={16} /> Heute nichts Dringendes.
           </div>
         ) : (
           <div className="task-list">
@@ -175,7 +172,9 @@ export function StartPage({ go, onNew, onEdit }: Props) {
           )}
         </div>
         {mine.length === 0 ? (
-          <div className="empty">Du hast heute schon alles geschafft.</div>
+          <div className="empty compact">
+            <AppIcon name="check" size={16} /> Du hast heute schon alles geschafft.
+          </div>
         ) : (
           <div className="task-list">
             {mine.slice(0, 3).map((t) => (
@@ -198,11 +197,8 @@ export function StartPage({ go, onNew, onEdit }: Props) {
           )}
         </div>
         {pool.length === 0 ? (
-          <div className="empty">
-            <div className="empty-icon">
-              <AppIcon name="basket" size={30} />
-            </div>
-            Im Familien-Pool wartet aktuell keine Aufgabe.
+          <div className="empty compact">
+            <AppIcon name="basket" size={16} /> Im Pool wartet gerade nichts.
           </div>
         ) : (
           <div className="task-list">

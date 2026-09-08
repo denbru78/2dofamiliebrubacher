@@ -116,13 +116,20 @@ export function QuickCapture({ onOpenForm }: Props) {
   return (
     <div className="quick-wrap">
       <div className="quick">
-        <AutoTextarea
+        <input
+          className="input"
           value={text}
-          onChange={setText}
-          onEnter={analyze}
-          placeholder={listening ? 'Ich höre zu …' : 'Schnell erfassen – z. B. Papa, Sonntag 9 Uhr Gartenlaube fertig machen'}
-          ariaLabel="Schnell erfassen"
-          maxRows={8}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault()
+              analyze()
+            }
+          }}
+          placeholder={listening ? 'Ich höre zu …' : 'Schnell erfassen …'}
+          aria-label="Schnell erfassen"
+          enterKeyHint="go"
+          autoComplete="off"
         />
         {canSpeak && (
           <button className={`btn mic ${listening ? 'listening' : ''}`} onClick={toggleMic} aria-label={listening ? 'Aufnahme beenden' : 'Spracheingabe'} aria-pressed={listening}>
