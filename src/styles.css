@@ -2059,3 +2059,37 @@ h2 {
   padding: 4px 11px;
   font-size: 13px;
 }
+
+/* ---------- Mitwachsende Textfelder, Mikrofon ---------- */
+.auto-grow {
+  resize: none;
+  overflow-y: hidden;
+  min-height: 48px;
+  line-height: 1.4;
+  field-sizing: content;
+}
+
+.quick {
+  align-items: flex-end;
+}
+
+.btn.mic {
+  width: 48px;
+  padding: 0;
+  flex: 0 0 auto;
+  background: var(--surface);
+  color: var(--sage-deep);
+  border: 1.5px solid var(--sage);
+}
+
+.btn.mic.listening {
+  background: var(--coral);
+  border-color: var(--coral);
+  color: #fff;
+  animation: mic-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes mic-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239, 138, 106, 0.45); }
+  50% { box-shadow: 0 0 0 8px rgba(239, 138, 106, 0); }
+}

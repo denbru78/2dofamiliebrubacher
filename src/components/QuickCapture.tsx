@@ -1,4 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { AutoTextarea } from './AutoTextarea'
+import { speechSupported, startSpeech, type SpeechHandle } from '../lib/speech'
 import type { DueKind, Priority, TaskInput } from '../lib/types'
 import { useStore } from '../lib/store'
 import { parseQuick, type ParseResult } from '../lib/quick/parse'
@@ -19,13 +21,44 @@ export function QuickCapture({ onOpenForm }: Props) {
   const [busy, setBusy] = useState(false)
   const [draft, setDraft] = useState<(ParseResult & { time: string | null }) | null>(null)
   const categoryNames = useMemo(() => categories.map((c) => c.name), [categories])
+  const [listening, setListening] = useState(false)
+  const speechRef = useRef<SpeechHandle | null>(null)
+  const canSpeak = useMemo(() => speechSupported(), [])
 
-  const analyze = () => {
-    const t = text.trim()
+  useEffect(() => () => speechRef.current?.stop(), [])
+
+  const toggleMic = () => {
+    if (listening) {
+      speechRef.current?.stop()
+      return
+    }
+    setDraft(null)
+    const h = startSpeech({
+      onText: (t, final) => {
+        setText(t)
+        if (final) {
+          // Diktat abgeschlossen → direkt die Vorschau öffnen
+          window.setTimeout(() => analyzeText(t), 50)
+        }
+      },
+      onEnd: () => setListening(false),
+      onError: (msg) => toast(msg, 'error'),
+    })
+    if (!h) {
+      toast('Spracheingabe auf diesem Gerät nicht verfügbar – bitte das Mikrofon der Tastatur nutzen.', 'info')
+      return
+    }
+    speechRef.current = h
+    setListening(true)
+  }
+
+  const analyzeText = (raw: string) => {
+    const t = raw.trim()
     if (!t) return
     const r = parseQuick(t, profiles, profile, quickKeywords.map((k) => ({ word: k.word, type: k.type, value: k.value })), categoryNames)
     setDraft(r)
   }
+  const analyze = () => analyzeText(text)
 
   const toInput = (d: ParseResult): TaskInput => {
     const reminderAt = d.time && d.due_date && settings.reminders_enabled ? new Date(`${d.due_date}T${d.time}:00`).toISOString() : null
@@ -83,25 +116,24 @@ export function QuickCapture({ onOpenForm }: Props) {
   return (
     <div className="quick-wrap">
       <div className="quick">
-        <input
-          className="input"
-          placeholder="Schnell erfassen – z. B. Papa, Sonntag 9 Uhr Gartenlaube fertig machen"
+        <AutoTextarea
           value={text}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault()
-              analyze()
-            }
-          }}
-          enterKeyHint="go"
-          autoComplete="off"
-          aria-label="Schnell erfassen"
+          onChange={setText}
+          onEnter={analyze}
+          placeholder={listening ? 'Ich höre zu …' : 'Schnell erfassen – z. B. Papa, Sonntag 9 Uhr Gartenlaube fertig machen'}
+          ariaLabel="Schnell erfassen"
+          maxRows={8}
         />
-        <button className="btn" onClick={analyze} disabled={!text.trim()} aria-label="Prüfen">
+        {canSpeak && (
+          <button className={`btn mic ${listening ? 'listening' : ''}`} onClick={toggleMic} aria-label={listening ? 'Aufnahme beenden' : 'Spracheingabe'} aria-pressed={listening}>
+            <AppIcon name="mic" size={20} />
+          </button>
+        )}
+        <button className="btn" onClick={analyze} disabled={!text.trim() || listening} aria-label="Prüfen">
           <IconPlus size={18} />
         </button>
       </div>
+      {listening && <div className="muted small" style={{ marginTop: 6 }}>Sprich jetzt – die Aufnahme endet automatisch nach einer Pause. Zum Abbrechen erneut auf das Mikrofon tippen.</div>}
 
       {draft && (
         <div className="card quick-preview">
@@ -114,7 +146,7 @@ export function QuickCapture({ onOpenForm }: Props) {
 
           <div className="field" style={{ marginBottom: 10 }}>
             <span className="label">Aufgabe</span>
-            <input className="input" value={draft.title} onChange={(e) => set('title', e.target.value)} />
+            <AutoTextarea value={draft.title} onChange={(v) => set('title', v)} ariaLabel="Aufgabe" maxRows={10} />
           </div>
 
           <div className="qp-row">
