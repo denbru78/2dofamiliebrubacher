@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import type { ReactNode } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from './supabase'
-import type { Achievement, Activity, Profile, Settings, Task, TaskInput } from './types'
+import type { Achievement, Activity, Profile, Role, Settings, Task, TaskInput } from './types'
 import { computeNewUnlocks, achievementDef } from './achievements'
 import { resolveDueDate, startOfWeek } from './dates'
 
@@ -38,6 +38,7 @@ interface StoreValue {
   releaseTask: (id: string) => Promise<string | null>
   archiveTask: (id: string) => Promise<string | null>
   updateProfile: (patch: { display_name?: string; avatar?: string }) => Promise<string | null>
+  updateMemberProfile: (id: string, patch: { display_name?: string; avatar?: string; role?: Role }) => Promise<string | null>
   updateSettings: (patch: Partial<Pick<Settings, 'priorities_enabled' | 'weekly_goal'>>) => Promise<string | null>
   profileById: (id: string | null | undefined) => Profile | undefined
   weekProgress: { done: number; total: number; goal: number }
@@ -391,6 +392,21 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [profile],
   )
 
+  const updateMemberProfile = useCallback(
+    async (id: string, patch: { display_name?: string; avatar?: string; role?: Role }) => {
+      if (!profile) return 'Nicht angemeldet.'
+      if (profile.role !== 'admin') return 'Nur Eltern können andere Profile bearbeiten.'
+      if (id === profile.id && patch.role && patch.role !== 'admin') return 'Du kannst dir selbst nicht die Admin-Rolle entziehen.'
+      const { data, error } = await supabase.from('profiles').update(patch).eq('id', id).select('*').single()
+      if (error) return errMsg(error)
+      const p = data as Profile
+      if (p.id === profile.id) setProfile(p)
+      setProfiles((all) => all.map((x) => (x.id === p.id ? p : x)))
+      return null
+    },
+    [profile],
+  )
+
   const updateSettings = useCallback(
     async (patch: Partial<Pick<Settings, 'priorities_enabled' | 'weekly_goal'>>) => {
       if (!profile) return 'Nicht angemeldet.'
@@ -442,6 +458,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     releaseTask,
     archiveTask,
     updateProfile,
+    updateMemberProfile,
     updateSettings,
     profileById,
     weekProgress,
