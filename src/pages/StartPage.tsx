@@ -184,6 +184,7 @@ export function StartPage({ go, onNew, onEdit }: Props) {
         </div>
       </button>
 
+      {settings.achievements_enabled && (
       <div className="card">
         <div className="card-head">
           <h2>Neu geschafft</h2>
@@ -206,6 +207,7 @@ export function StartPage({ go, onNew, onEdit }: Props) {
           <div className="muted small">Der erste Erfolg wartet – einfach eine Aufgabe abhaken.</div>
         )}
       </div>
+      )}
     </div>
   )
 }

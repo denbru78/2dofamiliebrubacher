@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useStore } from '../lib/store'
 import { Avatar } from '../components/Avatar'
 import { AvatarPicker } from '../components/MemberEditSheet'
+import { CategoryManager } from '../components/CategoryManager'
 import { formatDateTime } from '../lib/dates'
 
 const ACTION_LABEL: Record<string, string> = {
@@ -40,8 +41,8 @@ export function SettingsPage() {
     if (err) toast(err, 'error')
   }
 
-  const togglePrio = async () => {
-    const err = await updateSettings({ priorities_enabled: !settings.priorities_enabled })
+  const toggle = async (key: 'priorities_enabled' | 'kids_can_claim_pool' | 'achievements_enabled') => {
+    const err = await updateSettings({ [key]: !settings[key] })
     if (err) toast(err, 'error')
   }
 
@@ -89,7 +90,21 @@ export function SettingsPage() {
               <div style={{ fontWeight: 600 }}>Prioritäten verwenden</div>
               <div className="muted small">Ausgeblendet, wenn deaktiviert. Daten bleiben erhalten.</div>
             </div>
-            <button className={`switch ${settings.priorities_enabled ? 'on' : ''}`} onClick={togglePrio} role="switch" aria-checked={settings.priorities_enabled} aria-label="Prioritäten verwenden" />
+            <button className={`switch ${settings.priorities_enabled ? 'on' : ''}`} onClick={() => toggle('priorities_enabled')} role="switch" aria-checked={settings.priorities_enabled} aria-label="Prioritäten verwenden" />
+          </div>
+          <div className="toggle-row">
+            <div>
+              <div style={{ fontWeight: 600 }}>Kinder dürfen Pool-Aufgaben übernehmen</div>
+              <div className="muted small">Wenn aus, verteilen nur Eltern die Pool-Aufgaben.</div>
+            </div>
+            <button className={`switch ${settings.kids_can_claim_pool ? 'on' : ''}`} onClick={() => toggle('kids_can_claim_pool')} role="switch" aria-checked={settings.kids_can_claim_pool} aria-label="Kinder dürfen Pool übernehmen" />
+          </div>
+          <div className="toggle-row">
+            <div>
+              <div style={{ fontWeight: 600 }}>Erfolge anzeigen</div>
+              <div className="muted small">Kleine Erfolge auf der Startseite und unter Familie.</div>
+            </div>
+            <button className={`switch ${settings.achievements_enabled ? 'on' : ''}`} onClick={() => toggle('achievements_enabled')} role="switch" aria-checked={settings.achievements_enabled} aria-label="Erfolge anzeigen" />
           </div>
           <div className="toggle-row">
             <div>
@@ -99,6 +114,13 @@ export function SettingsPage() {
             <input className="input" style={{ width: 84, textAlign: 'center' }} inputMode="numeric" value={goal} onChange={(e) => setGoal(e.target.value)} onBlur={saveGoal} aria-label="Wochenziel" />
           </div>
           <div className="muted small" style={{ marginTop: 10 }}>Namen und Avatare der anderen Mitglieder änderst du unter „Familie“.</div>
+        </div>
+      )}
+
+      {isAdmin && (
+        <div className="card">
+          <h2 style={{ marginBottom: 10 }}>Kategorien</h2>
+          <CategoryManager />
         </div>
       )}
 

@@ -1,6 +1,6 @@
 import type { Task } from '../lib/types'
 import { useStore } from '../lib/store'
-import { categoryEmoji, priorityLabel, recurrenceLabel } from '../lib/constants'
+import { priorityLabel, recurrenceLabel } from '../lib/constants'
 import { dueLabel, dueState, formatDateTime } from '../lib/dates'
 import { Avatar } from './Avatar'
 import { IconCheck, IconEdit } from './Icons'
@@ -14,13 +14,13 @@ interface Props {
 }
 
 export function TaskCard({ task, onEdit, compact = false, showHistory = false, showClaim = false }: Props) {
-  const { profile, isAdmin, settings, profileById, completeTask, reopenTask, claimTask, releaseTask, toast } = useStore()
+  const { profile, isAdmin, settings, profileById, categoryIcon, completeTask, reopenTask, claimTask, releaseTask, toast } = useStore()
   const isDone = task.status === 'done' || task.status === 'archived'
   const isMine = !!profile && task.assignee_ids.includes(profile.id)
   const canComplete = !isDone && (isAdmin || isMine)
   const UNDO_MS = 5 * 60 * 1000
   const canUndo = isDone && !!profile && task.completed_by === profile.id && !!task.completed_at && Date.now() - new Date(task.completed_at).getTime() < UNDO_MS
-  const canClaim = !isDone && task.is_pool
+  const canClaim = !isDone && task.is_pool && (isAdmin || settings.kids_can_claim_pool)
   const assignees = task.assignee_ids.map((id) => profileById(id)).filter((p): p is NonNullable<typeof p> => !!p)
   const ds = dueState(task.due_kind, task.due_date)
   const due = dueLabel(task.due_kind, task.due_date)
@@ -38,6 +38,7 @@ export function TaskCard({ task, onEdit, compact = false, showHistory = false, s
     }
     if (canComplete) run(() => completeTask(task.id))
     else if (canClaim) toast('Bitte zuerst „Ich übernehme“ antippen.', 'info')
+    else if (task.is_pool) toast('Pool-Aufgaben verteilen gerade nur Mama oder Papa.', 'info')
     else toast('Diese Aufgabe gehört jemand anderem.', 'info')
   }
 
@@ -56,7 +57,7 @@ export function TaskCard({ task, onEdit, compact = false, showHistory = false, s
       <div className="task-main">
         <div className="task-title-row">
           <span className="task-cat" aria-hidden="true">
-            {categoryEmoji(task.category)}
+            {categoryIcon(task.category)}
           </span>
           <span className={`task-title ${isDone ? 'done' : ''}`}>{task.title}</span>
           {isAdmin && onEdit && (

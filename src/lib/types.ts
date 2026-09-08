@@ -18,6 +18,18 @@ export interface Settings {
   family_id: string
   priorities_enabled: boolean
   weekly_goal: number
+  kids_can_claim_pool: boolean
+  achievements_enabled: boolean
+}
+
+export interface Category {
+  id: string
+  family_id: string
+  name: string
+  icon: string
+  sort_order: number
+  is_active: boolean
+  created_at: string
 }
 
 export interface Task {

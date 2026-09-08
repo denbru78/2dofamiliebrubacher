@@ -15,6 +15,11 @@ export function categoryEmoji(name: string): string {
   return CATEGORIES.find((c) => c.name === name)?.emoji ?? '✨'
 }
 
+/** Kurzform für Chips (Haus, Garten, Auto, Kaufen …) */
+export function categoryShort(name: string): string {
+  return CATEGORIES.find((c) => c.name === name)?.short ?? name
+}
+
 export const PRIORITIES: { value: Priority; label: string }[] = [
   { value: 'none', label: 'Keine' },
   { value: 'normal', label: 'Normal' },

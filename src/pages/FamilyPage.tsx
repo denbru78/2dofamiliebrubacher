@@ -11,7 +11,7 @@ interface Props {
 }
 
 export function FamilyPage({ go }: Props) {
-  const { allProfiles, tasks, isAdmin, achievements } = useStore()
+  const { allProfiles, tasks, isAdmin, achievements, settings } = useStore()
   const [editing, setEditing] = useState<Profile | null>(null)
   const open = useMemo(() => tasks.filter((t) => t.status === 'open' || t.status === 'claimed'), [tasks])
   const done = useMemo(() => tasks.filter((t) => t.status === 'done' || t.status === 'archived'), [tasks])
@@ -69,6 +69,7 @@ export function FamilyPage({ go }: Props) {
         </div>
       </button>
 
+      {settings.achievements_enabled && (
       <button className="card card-btn" onClick={() => go('achievements')}>
         <div className="card-head" style={{ marginBottom: 0 }}>
           <div>
@@ -80,6 +81,7 @@ export function FamilyPage({ go }: Props) {
           </span>
         </div>
       </button>
+      )}
 
       {editing && <MemberEditSheet member={editing} onClose={() => setEditing(null)} />}
     </div>

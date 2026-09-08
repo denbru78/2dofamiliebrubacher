@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { DueKind, Priority, Task, TaskInput } from '../lib/types'
 import { useStore } from '../lib/store'
 import {
-  CATEGORIES,
+  categoryShort,
   DUE_KINDS,
   PRIORITIES,
   RECURRENCE_CHOICES,
@@ -54,7 +54,7 @@ function fromTask(t: Task): TaskInput {
 type WhoMode = 'pool' | 'single' | 'multi'
 
 export function TaskForm({ task, onClose, onGoToTasks }: Props) {
-  const { profiles, settings, createTask, updateTask, deleteTask, archiveTask, toast } = useStore()
+  const { profiles, settings, categories, createTask, updateTask, deleteTask, archiveTask, toast } = useStore()
   const [input, setInput] = useState<TaskInput>(task ? fromTask(task) : emptyInput())
   const [whoMode, setWhoMode] = useState<WhoMode>(
     task && task.assignee_ids.length > 1 ? 'multi' : task && task.assignee_ids.length === 1 ? 'single' : 'pool',
@@ -234,11 +234,16 @@ export function TaskForm({ task, onClose, onGoToTasks }: Props) {
         <div className="field">
           <span className="label">Kategorie</span>
           <div className="chips wrap">
-            {CATEGORIES.map((c) => (
-              <button key={c.name} className={`chip ${input.category === c.name ? 'active' : ''}`} onClick={() => set('category', c.name)}>
-                <span aria-hidden="true">{c.emoji}</span> {c.short}
+            {categories.map((c) => (
+              <button key={c.id} className={`chip ${input.category === c.name ? 'active' : ''}`} onClick={() => set('category', c.name)}>
+                <span aria-hidden="true">{c.icon}</span> {categoryShort(c.name)}
               </button>
             ))}
+            {task && !categories.some((c) => c.name === input.category) && (
+              <button className="chip active" onClick={() => undefined}>
+                {input.category}
+              </button>
+            )}
           </div>
         </div>
 

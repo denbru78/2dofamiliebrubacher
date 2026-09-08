@@ -2,8 +2,9 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import type { ReactNode } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from './supabase'
-import type { Achievement, Activity, Profile, Role, Settings, Task, TaskInput } from './types'
+import type { Achievement, Activity, Category, Profile, Role, Settings, Task, TaskInput } from './types'
 import { computeNewUnlocks, achievementDef } from './achievements'
+import { CATEGORIES, categoryEmoji } from './constants'
 import { nextDueDate, resolveDueDate, startOfWeek } from './dates'
 
 export interface ToastAction {
@@ -25,6 +26,12 @@ interface StoreValue {
   profiles: Profile[]
   allProfiles: Profile[]
   settings: Settings
+  categories: Category[]
+  allCategories: Category[]
+  categoryIcon: (name: string) => string
+  addCategory: (name: string, icon: string) => Promise<string | null>
+  updateCategory: (id: string, patch: Partial<Pick<Category, 'name' | 'icon' | 'sort_order' | 'is_active'>>) => Promise<string | null>
+  deleteCategory: (id: string) => Promise<string | null>
   tasks: Task[]
   activities: Activity[]
   achievements: Achievement[]
@@ -46,14 +53,14 @@ interface StoreValue {
   archiveTask: (id: string) => Promise<string | null>
   updateProfile: (patch: { display_name?: string; avatar?: string }) => Promise<string | null>
   updateMemberProfile: (id: string, patch: { display_name?: string; avatar?: string; role?: Role; active?: boolean }) => Promise<string | null>
-  updateSettings: (patch: Partial<Pick<Settings, 'priorities_enabled' | 'weekly_goal'>>) => Promise<string | null>
+  updateSettings: (patch: Partial<Pick<Settings, 'priorities_enabled' | 'weekly_goal' | 'kids_can_claim_pool' | 'achievements_enabled'>>) => Promise<string | null>
   profileById: (id: string | null | undefined) => Profile | undefined
   weekProgress: { done: number; total: number; goal: number }
 }
 
 const StoreContext = createContext<StoreValue | null>(null)
 
-const DEFAULT_SETTINGS: Settings = { family_id: '', priorities_enabled: true, weekly_goal: 10 }
+const DEFAULT_SETTINGS: Settings = { family_id: '', priorities_enabled: true, weekly_goal: 10, kids_can_claim_pool: true, achievements_enabled: true }
 
 function errMsg(e: unknown): string {
   if (!e) return 'Unbekannter Fehler'
@@ -76,6 +83,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [allProfiles, setAllProfiles] = useState<Profile[]>([])
   const profiles = useMemo(() => allProfiles.filter((p) => p.active !== false), [allProfiles])
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS)
+  const [allCategories, setAllCategories] = useState<Category[]>([])
   const [tasks, setTasks] = useState<Task[]>([])
   const [activities, setActivities] = useState<Activity[]>([])
   const [achievements, setAchievements] = useState<Achievement[]>([])
@@ -118,28 +126,31 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     if (!userId) return
     setDataError(null)
     try {
-      const [pRes, sRes, tRes, aRes, achRes] = await Promise.all([
+      const [pRes, sRes, tRes, aRes, achRes, cRes] = await Promise.all([
         supabase.from('profiles').select('*').order('created_at'),
         supabase.from('settings').select('*').limit(1),
         supabase.from('tasks').select('*').order('created_at', { ascending: false }).limit(2000),
         supabase.from('task_activity').select('*').order('created_at', { ascending: false }).limit(1000),
         supabase.from('achievements').select('*'),
+        supabase.from('categories').select('*').order('sort_order').order('name'),
       ])
       if (pRes.error) throw pRes.error
       if (sRes.error) throw sRes.error
       if (tRes.error) throw tRes.error
       if (aRes.error) throw aRes.error
       if (achRes.error) throw achRes.error
+      if (cRes.error) throw cRes.error
 
       const ps = (pRes.data ?? []) as Profile[]
       const me = ps.find((p) => p.id === userId) ?? null
       setAllProfiles(ps)
       setProfile(me)
       const s = (sRes.data ?? [])[0] as Settings | undefined
-      setSettings(s ?? { ...DEFAULT_SETTINGS, family_id: me?.family_id ?? '' })
+      setSettings(s ? { ...DEFAULT_SETTINGS, ...s } : { ...DEFAULT_SETTINGS, family_id: me?.family_id ?? '' })
       setTasks((tRes.data ?? []) as Task[])
       setActivities((aRes.data ?? []) as Activity[])
       setAchievements((achRes.data ?? []) as Achievement[])
+      setAllCategories((cRes.data ?? []) as Category[])
       if (!me) setDataError('Für diesen Benutzer gibt es noch kein Familienprofil. Bitte den SQL-Block in Supabase (erneut) ausführen.')
     } catch (e) {
       setDataError(errMsg(e))
@@ -153,6 +164,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setTasks([])
       setActivities([])
       setAchievements([])
+      setAllCategories([])
       setSettings(DEFAULT_SETTINGS)
       return
     }
@@ -168,6 +180,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, () => reload())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'achievements' }, () => reload())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'settings' }, () => reload())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'categories' }, () => reload())
       .subscribe()
     const onVisible = () => {
       if (document.visibilityState === 'visible') reload()
@@ -183,7 +196,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   // ---- Erfolge automatisch freischalten --------------------------------
   useEffect(() => {
-    if (!profile || unlockingRef.current || dataLoading) return
+    if (!profile || unlockingRef.current || dataLoading || !settings.achievements_enabled) return
     const unlocks = computeNewUnlocks(tasks, activities, profiles, settings, achievements)
     // Mitglieder dürfen nur eigene und Familien-Erfolge eintragen
     const allowed = unlocks
@@ -450,8 +463,69 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [profile],
   )
 
+  // ---- Kategorien ---------------------------------------------------------
+  const categories = useMemo(() => {
+    if (allCategories.length === 0) {
+      // Fallback, falls die Kategorien-Tabelle noch nicht angelegt ist
+      return CATEGORIES.map((c, i) => ({ id: c.name, family_id: '', name: c.name, icon: c.emoji, sort_order: i, is_active: true, created_at: '' }))
+    }
+    return allCategories.filter((c) => c.is_active).sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name))
+  }, [allCategories])
+
+  const categoryIcon = useCallback(
+    (name: string) => allCategories.find((c) => c.name === name)?.icon ?? categoryEmoji(name),
+    [allCategories],
+  )
+
+  const addCategory = useCallback(
+    async (name: string, icon: string) => {
+      if (!profile) return 'Nicht angemeldet.'
+      const n = name.trim()
+      if (!n) return 'Bitte einen Namen eingeben.'
+      if (allCategories.some((c) => c.name.toLowerCase() === n.toLowerCase())) return 'Diese Kategorie gibt es schon.'
+      const maxSort = allCategories.reduce((m, c) => Math.max(m, c.sort_order), 0)
+      const { data, error } = await supabase
+        .from('categories')
+        .insert({ family_id: profile.family_id, name: n, icon: icon.trim() || '✨', sort_order: maxSort + 10 })
+        .select('*')
+        .single()
+      if (error) return errMsg(error)
+      setAllCategories((all) => [...all, data as Category])
+      return null
+    },
+    [profile, allCategories],
+  )
+
+  const updateCategory = useCallback(
+    async (id: string, patch: Partial<Pick<Category, 'name' | 'icon' | 'sort_order' | 'is_active'>>) => {
+      const old = allCategories.find((c) => c.id === id)
+      const { data, error } = await supabase.from('categories').update(patch).eq('id', id).select('*').single()
+      if (error) return errMsg(error)
+      const c = data as Category
+      setAllCategories((all) => all.map((x) => (x.id === c.id ? c : x)))
+      if (old && patch.name && patch.name !== old.name) {
+        // Aufgaben lokal mitziehen (in der Datenbank erledigt das ein Trigger)
+        setTasks((all) => all.map((t) => (t.category === old.name ? { ...t, category: c.name } : t)))
+      }
+      return null
+    },
+    [allCategories],
+  )
+
+  const deleteCategory = useCallback(
+    async (id: string) => {
+      const old = allCategories.find((c) => c.id === id)
+      const { error } = await supabase.from('categories').delete().eq('id', id)
+      if (error) return errMsg(error)
+      setAllCategories((all) => all.filter((x) => x.id !== id))
+      if (old) setTasks((all) => all.map((t) => (t.category === old.name ? { ...t, category: 'Sonstiges' } : t)))
+      return null
+    },
+    [allCategories],
+  )
+
   const updateSettings = useCallback(
-    async (patch: Partial<Pick<Settings, 'priorities_enabled' | 'weekly_goal'>>) => {
+    async (patch: Partial<Pick<Settings, 'priorities_enabled' | 'weekly_goal' | 'kids_can_claim_pool' | 'achievements_enabled'>>) => {
       if (!profile) return 'Nicht angemeldet.'
       const { data, error } = await supabase
         .from('settings')
@@ -482,6 +556,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     profiles,
     allProfiles,
     settings,
+    categories,
+    allCategories,
+    categoryIcon,
+    addCategory,
+    updateCategory,
+    deleteCategory,
     tasks,
     activities,
     achievements,

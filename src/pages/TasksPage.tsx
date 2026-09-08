@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import type { Priority, Task } from '../lib/types'
 import { useStore } from '../lib/store'
-import { CATEGORIES, PRIORITIES } from '../lib/constants'
+import { PRIORITIES } from '../lib/constants'
 import { dueState } from '../lib/dates'
 import { isImportantNow } from './StartPage'
 import { Avatar } from '../components/Avatar'
@@ -19,7 +19,7 @@ interface Props {
 const PRIO_RANK: Record<Priority, number> = { urgent: 0, important: 1, normal: 2, none: 3 }
 
 export function TasksPage({ personFilter, setPersonFilter, urgentOnly, setUrgentOnly, onEdit }: Props) {
-  const { tasks, profiles, settings, profileById } = useStore()
+  const { tasks, profiles, settings, profileById, allCategories, categories } = useStore()
   const [showDone, setShowDone] = useState(false)
   const [category, setCategory] = useState('all')
   const [priority, setPriority] = useState<'all' | Priority>('all')
@@ -118,9 +118,9 @@ export function TasksPage({ personFilter, setPersonFilter, urgentOnly, setUrgent
         )}
         <select className="select chip" style={{ minHeight: 38, padding: '6px 34px 6px 14px', width: 'auto' }} value={category} onChange={(e) => setCategory(e.target.value)} aria-label="Kategorie">
           <option value="all">Alle Kategorien</option>
-          {CATEGORIES.map((c) => (
-            <option key={c.name} value={c.name}>
-              {c.emoji} {c.name}
+          {(allCategories.length ? allCategories : categories).map((c) => (
+            <option key={c.id} value={c.name}>
+              {c.icon} {c.name}
             </option>
           ))}
         </select>
