@@ -5,7 +5,7 @@ import { useStore } from '../lib/store'
 import { dueState } from '../lib/dates'
 import { achievementView } from '../lib/achievements'
 import { Avatar } from '../components/Avatar'
-import { HeroIllustration } from '../components/HeroIllustration'
+import { HeroIllustration, SunBell } from '../components/HeroIllustration'
 import { QuickCapture } from '../components/QuickCapture'
 import { TaskCard } from '../components/TaskCard'
 import { IconChevron, IconPlus } from '../components/Icons'
@@ -94,13 +94,16 @@ export function StartPage({ go, onNew, onEdit }: Props) {
   return (
     <div className="page">
       <div className="hero">
-        <HeroIllustration />
-        <button className="bell-btn" onClick={() => setNotifOpen(true)} aria-label="Mitteilungen">
-          <AppIcon name="bell" size={20} />
-          {unreadCount > 0 && <span className="bell-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>}
-        </button>
-        <h1>Unser Plan</h1>
-        <p className="subtitle">Gemeinsam mehr schaffen ♡</p>
+        <div className="hero-top">
+          <div className="hero-text">
+            <h1>Unser Plan</h1>
+            <p className="subtitle">Gemeinsam mehr schaffen ♡</p>
+          </div>
+          <div className="hero-art">
+            <SunBell unread={unreadCount} onClick={() => setNotifOpen(true)} />
+            <HeroIllustration />
+          </div>
+        </div>
         <div className="family-row">
           {profiles.map((p) => (
             <button key={p.id} className="family-member" onClick={() => go('tasks', p.id)}>

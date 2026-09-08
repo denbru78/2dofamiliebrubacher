@@ -14,3 +14,29 @@ export function HeroIllustration() {
     </svg>
   )
 }
+
+/** Sonne mit Strahlen – dient als Mitteilungs-Glocke; bei neuen Mitteilungen breiten sich die Strahlen aus */
+export function SunBell({ unread, onClick }: { unread: number; onClick: () => void }) {
+  return (
+    <button className={`sun-bell ${unread > 0 ? 'has-unread' : ''}`} onClick={onClick} aria-label={unread > 0 ? `Mitteilungen, ${unread} neu` : 'Mitteilungen'}>
+      <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <g className="rays" stroke="#F1C65E" strokeWidth="5" strokeLinecap="round">
+          <line x1="50" y1="6" x2="50" y2="16" />
+          <line x1="50" y1="84" x2="50" y2="94" />
+          <line x1="6" y1="50" x2="16" y2="50" />
+          <line x1="84" y1="50" x2="94" y2="50" />
+          <line x1="19" y1="19" x2="26" y2="26" />
+          <line x1="74" y1="74" x2="81" y2="81" />
+          <line x1="81" y1="19" x2="74" y2="26" />
+          <line x1="26" y1="74" x2="19" y2="81" />
+        </g>
+        <circle className="disc" cx="50" cy="50" r="27" fill="#F6D27A" />
+        <g fill="none" stroke="#5A4410" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" transform="translate(50 50) scale(1.15) translate(-12 -12)">
+          <path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z" />
+          <path d="M10 20.5a2 2 0 0 0 4 0" />
+        </g>
+      </svg>
+      {unread > 0 && <span className="bell-badge">{unread > 9 ? '9+' : unread}</span>}
+    </button>
+  )
+}
