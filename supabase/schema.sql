@@ -741,9 +741,9 @@ declare
   goal integer;
   done_week integer;
   wk_start timestamptz := date_trunc('week', (now() at time zone 'Europe/Berlin'))::timestamp at time zone 'Europe/Berlin';
+  sys boolean := coalesce(current_setting('familie.system_insert', true), '') = 'on';
 begin
-  -- Neue Zuweisung (Person war vorher nicht zuständig)
-  if not new.is_pool and new.status in ('open','claimed') then
+  if not sys and not new.is_pool and new.status in ('open','claimed') then
     foreach pid in array new.assignee_ids loop
       if pid <> coalesce(uid, '00000000-0000-0000-0000-000000000000'::uuid)
          and (tg_op = 'INSERT' or not (pid = any(old.assignee_ids))) then
@@ -754,13 +754,11 @@ begin
   end if;
 
   if tg_op = 'UPDATE' then
-    -- Pool-Aufgabe übernommen → Familie
     if old.is_pool and not new.is_pool and new.status = 'claimed' then
       insert into public.notifications (family_id, profile_id, type, title, body, task_id)
       values (new.family_id, null, 'claimed', 'Pool-Aufgabe übernommen', actor_name || ' übernimmt „' || new.title || '“.', new.id);
     end if;
 
-    -- Wochenziel genau erreicht → Familie (einmal pro Woche)
     if new.status = 'done' and old.status <> 'done' then
       select weekly_goal into goal from public.settings where family_id = new.family_id;
       select count(*) into done_week from public.tasks
@@ -963,6 +961,7 @@ declare
   fam uuid := coalesce(new.family_id, old.family_id);
   tid uuid := coalesce(new.id, old.id);
   ttl text := coalesce(new.title, old.title);
+  auto_arch boolean := coalesce(current_setting('familie.auto_archive', true), '') = 'on';
 begin
   if tg_op = 'INSERT' then
     insert into public.task_activity (family_id, task_id, actor_id, action, task_title, metadata)
@@ -977,14 +976,13 @@ begin
     return old;
   end if;
 
-  -- UPDATE
   if new.status is distinct from old.status then
     if new.status = 'done' then
       insert into public.task_activity (family_id, task_id, actor_id, action, task_title, metadata)
       values (fam, tid, uid, 'completed', ttl, jsonb_build_object('completed_by', new.completed_by));
     elsif new.status = 'archived' then
       insert into public.task_activity (family_id, task_id, actor_id, action, task_title, metadata)
-      values (fam, tid, uid, 'archived', ttl, jsonb_build_object('auto', uid is null));
+      values (fam, tid, case when auto_arch then null else uid end, 'archived', ttl, jsonb_build_object('auto', auto_arch or uid is null));
     elsif new.status = 'claimed' and old.is_pool and not new.is_pool then
       insert into public.task_activity (family_id, task_id, actor_id, action, task_title, metadata)
       values (fam, tid, uid, 'taken_from_pool', ttl, jsonb_build_object('assignee_ids', to_jsonb(new.assignee_ids)));
@@ -1023,8 +1021,7 @@ begin
       'category', case when new.category is distinct from old.category then jsonb_build_object('old', old.category, 'new', new.category) end,
       'recurrence', case when new.recurrence is distinct from old.recurrence or new.recurrence_interval is distinct from old.recurrence_interval
                           then jsonb_build_object('old', old.recurrence, 'new', new.recurrence, 'old_n', old.recurrence_interval, 'new_n', new.recurrence_interval) end,
-      'description_changed', (new.description is distinct from old.description),
-      'series_scope', current_setting('familie.series_scope', true))));
+      'description_changed', (new.description is distinct from old.description))));
   end if;
 
   return new;
@@ -1046,12 +1043,14 @@ set search_path = public
 as $$
 declare n integer;
 begin
+  perform set_config('familie.auto_archive', 'on', true);
   with upd as (
     update public.tasks set status = 'archived', updated_at = now()
     where status = 'done' and completed_at < now() - interval '30 days'
       and (auth.uid() is null or family_id = public.current_family_id())
     returning 1
   ) select count(*) into n from upd;
+  perform set_config('familie.auto_archive', 'off', true);
   return n;
 end;
 $$;
