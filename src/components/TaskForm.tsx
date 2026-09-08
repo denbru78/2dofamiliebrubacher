@@ -18,6 +18,7 @@ import { ConfirmDialog } from './ConfirmDialog'
 
 interface Props {
   task?: Task | null
+  prefill?: TaskInput | null
   onClose: () => void
   onGoToTasks?: () => void
 }
@@ -58,12 +59,13 @@ function fromTask(t: Task): TaskInput {
 
 type WhoMode = 'pool' | 'single' | 'multi'
 
-export function TaskForm({ task, onClose, onGoToTasks }: Props) {
+export function TaskForm({ task, prefill, onClose, onGoToTasks }: Props) {
   const { profiles, settings, categories, createTask, updateTask, deleteTask, archiveTask, toast } = useStore()
-  const [input, setInput] = useState<TaskInput>(task ? fromTask(task) : emptyInput())
-  const [whoMode, setWhoMode] = useState<WhoMode>(
-    task && task.assignee_ids.length > 1 ? 'multi' : task && task.assignee_ids.length === 1 ? 'single' : 'pool',
-  )
+  const [input, setInput] = useState<TaskInput>(task ? fromTask(task) : prefill ? { ...emptyInput(), ...prefill } : emptyInput())
+  const [whoMode, setWhoMode] = useState<WhoMode>(() => {
+    const ids = task ? task.assignee_ids : (prefill?.assignee_ids ?? [])
+    return ids.length > 1 ? 'multi' : ids.length === 1 ? 'single' : 'pool'
+  })
   const [recChoice, setRecChoice] = useState<RecurrenceChoice>(task ? toRecurrenceChoice(task.recurrence, task.recurrence_interval ?? 1) : 'none')
   const [recN, setRecN] = useState(String(task?.recurrence_interval && task.recurrence_interval > 1 ? task.recurrence_interval : 2))
   const [moreOpen, setMoreOpen] = useState(!!(task && (task.description || task.link || task.cost !== null || task.recurrence !== 'none')))

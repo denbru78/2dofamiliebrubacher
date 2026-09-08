@@ -141,4 +141,14 @@ export interface TaskInput {
   recurrence: Recurrence
   recurrence_interval: number
   reminder_type: ReminderType
+  reminder_at?: string | null
+}
+
+export interface QuickKeywordRow {
+  id: string
+  family_id: string
+  word: string
+  type: 'person' | 'category'
+  value: string
+  created_at: string
 }

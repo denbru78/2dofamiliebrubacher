@@ -4,6 +4,7 @@ import { Avatar } from '../components/Avatar'
 import { AvatarPicker, ColorPicker } from '../components/MemberEditSheet'
 import { memberColorKey } from '../lib/colors'
 import { CategoryManager } from '../components/CategoryManager'
+import { QuickKeywordManager } from '../components/QuickKeywordManager'
 import { formatDateTime } from '../lib/dates'
 
 const ACTION_LABEL: Record<string, string> = {
@@ -236,6 +237,13 @@ export function SettingsPage() {
         <div className="card">
           <h2 style={{ marginBottom: 10 }}>Kategorien</h2>
           <CategoryManager />
+        </div>
+      )}
+
+      {isAdmin && (
+        <div className="card">
+          <h2 style={{ marginBottom: 10 }}>Schnelleingabe – eigene Wörter</h2>
+          <QuickKeywordManager />
         </div>
       )}
 

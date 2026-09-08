@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { View } from '../App'
-import type { Task } from '../lib/types'
+import type { Task, TaskInput } from '../lib/types'
 import { useStore } from '../lib/store'
 import { dueState } from '../lib/dates'
 import { achievementView } from '../lib/achievements'
@@ -16,7 +16,7 @@ import { todayISO } from '../lib/dates'
 
 interface Props {
   go: (v: View, personFilter?: string, urgentOnly?: boolean) => void
-  onNew: () => void
+  onNew: (prefill?: TaskInput) => void
   onEdit: (t: Task) => void
 }
 
@@ -110,7 +110,7 @@ export function StartPage({ go, onNew, onEdit }: Props) {
             </button>
           ))}
           {isAdmin && (
-            <button className="family-member add" onClick={onNew}>
+            <button className="family-member add" onClick={() => onNew()}>
               <span className="avatar lg">
                 <IconPlus size={26} />
               </span>
@@ -121,7 +121,7 @@ export function StartPage({ go, onNew, onEdit }: Props) {
         </div>
       </div>
 
-      {isAdmin && <QuickCapture />}
+      {isAdmin && <QuickCapture onOpenForm={(prefill) => onNew(prefill)} />}
 
       {myDueToday.length > 0 && (
         <button className="digest-banner" onClick={() => setNotifOpen(true)}>

@@ -2030,3 +2030,32 @@ h2 {
   font-weight: 600;
   margin-top: 6px;
 }
+
+/* ---------- Schnelleingabe mit Erkennung ---------- */
+.quick-wrap {
+  margin-bottom: 18px;
+}
+
+.quick-wrap .quick {
+  margin-bottom: 0;
+}
+
+.quick-preview {
+  margin-top: 10px;
+  margin-bottom: 0;
+  border: 1.5px solid var(--sage-soft);
+}
+
+.qp-row {
+  margin-bottom: 10px;
+}
+
+.qp-row .label {
+  margin-bottom: 4px;
+}
+
+.qp-row .chips.wrap .chip {
+  min-height: 34px;
+  padding: 4px 11px;
+  font-size: 13px;
+}

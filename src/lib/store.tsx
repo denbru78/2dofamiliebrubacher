@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import type { ReactNode } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from './supabase'
-import type { Achievement, Activity, Category, Invite, InvitePreview, Notification, Profile, Role, Settings, Task, TaskInput, WeeklyResult } from './types'
+import type { Achievement, Activity, Category, Invite, InvitePreview, Notification, Profile, QuickKeywordRow, Role, Settings, Task, TaskInput, WeeklyResult } from './types'
 import { clearPendingInvite, getPendingInvite } from './invites'
 import { computeNewUnlocks } from './achievements'
 import { CATEGORIES, categoryEmoji } from './constants'
@@ -64,6 +64,9 @@ interface StoreValue {
   createInvite: (role: Role, label?: string) => Promise<{ token?: string; error?: string }>
   revokeInvite: (id: string) => Promise<string | null>
   inviteError: string | null
+  quickKeywords: QuickKeywordRow[]
+  addQuickKeyword: (word: string, type: 'person' | 'category', value: string) => Promise<string | null>
+  removeQuickKeyword: (id: string) => Promise<string | null>
   signOut: () => Promise<void>
   createTask: (input: TaskInput) => Promise<string | null>
   updateTask: (id: string, input: TaskInput, scope?: 'single' | 'series') => Promise<string | null>
@@ -136,6 +139,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [detailTaskId, setDetailTaskId] = useState<string | null>(null)
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [invites, setInvites] = useState<Invite[]>([])
+  const [quickKeywords, setQuickKeywords] = useState<QuickKeywordRow[]>([])
   const [inviteError, setInviteError] = useState<string | null>(null)
   const acceptingRef = useRef(false)
   const [tasks, setTasks] = useState<Task[]>([])
@@ -197,6 +201,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const nRes = await supabase.from('notifications').select('*').order('created_at', { ascending: false }).limit(100)
       if (!nRes.error) setNotifications((nRes.data ?? []) as Notification[])
       const fRes = await supabase.from('families').select('name').limit(1)
+      const kRes = await supabase.from('quick_keywords').select('*').order('word')
+      setQuickKeywords(kRes.error ? [] : ((kRes.data ?? []) as QuickKeywordRow[]))
       const iRes = await supabase.from('family_invites').select('*').order('created_at', { ascending: false })
       setInvites(iRes.error ? [] : ((iRes.data ?? []) as Invite[]))
       if (!fRes.error && fRes.data && fRes.data[0]) setFamilyName((fRes.data[0] as { name: string }).name)
@@ -261,6 +267,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'categories' }, () => reload())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, () => reload())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'family_invites' }, () => reload())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'quick_keywords' }, () => reload())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'weekly_results' }, () => reload())
       .subscribe()
     const onVisible = () => {
@@ -433,6 +440,26 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     return { token: row.token }
   }, [])
 
+  const addQuickKeyword = useCallback(
+    async (word: string, type: 'person' | 'category', value: string) => {
+      if (!profile) return 'Nicht angemeldet.'
+      const w = word.trim().toLowerCase()
+      if (w.length < 2) return 'Bitte ein Wort mit mindestens 2 Buchstaben eingeben.'
+      const { data, error } = await supabase.from('quick_keywords').insert({ family_id: profile.family_id, word: w, type, value, created_by: profile.id }).select('*').single()
+      if (error) return errMsg(error)
+      setQuickKeywords((all) => [...all, data as QuickKeywordRow].sort((a, b) => a.word.localeCompare(b.word)))
+      return null
+    },
+    [profile],
+  )
+
+  const removeQuickKeyword = useCallback(async (id: string) => {
+    const { error } = await supabase.from('quick_keywords').delete().eq('id', id)
+    if (error) return errMsg(error)
+    setQuickKeywords((all) => all.filter((k) => k.id !== id))
+    return null
+  }, [])
+
   const revokeInvite = useCallback(async (id: string) => {
     const { error } = await supabase.from('family_invites').delete().eq('id', id)
     if (error) return errMsg(error)
@@ -463,6 +490,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         recurrence: input.recurrence,
         recurrence_interval: input.recurrence === 'none' ? 1 : Math.max(1, input.recurrence_interval || 1),
         reminder_type: input.reminder_type,
+        ...(input.reminder_type === 'custom' && input.reminder_at ? { reminder_at: input.reminder_at } : {}),
       }
     },
     [profiles],
@@ -806,6 +834,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     createInvite,
     revokeInvite,
     inviteError,
+    quickKeywords,
+    addQuickKeyword,
+    removeQuickKeyword,
     signOut,
     createTask,
     updateTask,

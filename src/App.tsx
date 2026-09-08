@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react'
 import { useStore } from './lib/store'
-import type { Task } from './lib/types'
+import type { Task, TaskInput } from './lib/types'
 import { BottomNav } from './components/BottomNav'
 import { Toasts } from './components/Toasts'
 import { UpdateBanner } from './components/UpdateBanner'
@@ -29,6 +29,7 @@ export default function App() {
   const [urgentOnly, setUrgentOnly] = useState(false)
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<Task | null>(null)
+  const [prefill, setPrefill] = useState<TaskInput | null>(null)
 
   const go = useCallback((v: View, pf?: string, urgent?: boolean) => {
     if (pf) setPersonFilter(pf)
@@ -37,8 +38,9 @@ export default function App() {
     window.scrollTo({ top: 0 })
   }, [])
 
-  const openNew = () => {
+  const openNew = (p?: TaskInput) => {
     setEditing(null)
+    setPrefill(p ?? null)
     setFormOpen(true)
   }
   const openEdit = (t: Task) => {
@@ -50,6 +52,7 @@ export default function App() {
   const closeForm = useCallback(() => {
     setFormOpen(false)
     setEditing(null)
+    setPrefill(null)
   }, [])
 
   if (authLoading) {
@@ -160,14 +163,14 @@ export default function App() {
       {view === 'settings' && <SettingsPage />}
 
       {isAdmin && !formOpen && (
-        <button className="fab" onClick={openNew} aria-label="Neue Aufgabe">
+        <button className="fab" onClick={() => openNew()} aria-label="Neue Aufgabe">
           <IconPlus /> Aufgabe
         </button>
       )}
       <BottomNav view={view} onChange={(v) => go(v)} />
       <UpdateBanner />
       {detailTask && !formOpen && <TaskDetail task={detailTask} onClose={closeTask} onEdit={openEdit} />}
-      {formOpen && <TaskForm task={editing} onClose={closeForm} onGoToTasks={() => go('tasks', 'all')} />}
+      {formOpen && <TaskForm task={editing} prefill={prefill} onClose={closeForm} onGoToTasks={() => go('tasks', 'all')} />}
       <Toasts />
     </div>
   )
