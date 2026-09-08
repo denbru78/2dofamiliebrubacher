@@ -13,6 +13,10 @@ import { PoolPage } from './pages/PoolPage'
 import { AchievementsPage } from './pages/AchievementsPage'
 import { FamilyPage } from './pages/FamilyPage'
 import { SettingsPage } from './pages/SettingsPage'
+import { NoFamilyPage } from './pages/NoFamilyPage'
+import { captureInviteFromUrl } from './lib/invites'
+
+captureInviteFromUrl()
 
 export type View = 'start' | 'tasks' | 'pool' | 'achievements' | 'family' | 'settings'
 
@@ -83,6 +87,10 @@ export default function App() {
         </div>
       </div>
     )
+  }
+
+  if (!profile && !dataError?.includes('Verbindung')) {
+    return <NoFamilyPage />
   }
 
   if (!profile) {

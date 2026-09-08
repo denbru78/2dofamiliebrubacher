@@ -68,6 +68,13 @@ Optional (nur falls du das Supabase-Projekt später wechselst): Unter **Site con
 
 ---
 
+## Weitere Mitglieder einladen (z. B. Oma, Opa)
+
+In der App unter **Familie → Mitglied einladen**: Rolle wählen, Link erstellen, per WhatsApp teilen oder kopieren.
+Der Link ist 7 Tage gültig und funktioniert genau einmal. Wer ihn öffnet, registriert sich mit eigener E-Mail und tritt automatisch eurer Familie bei.
+
+Damit die Registrierung ohne E-Mail-Bestätigung klappt: Supabase → **Authentication → Providers → Email** → **Confirm email** ausschalten (optional; sonst muss der Eingeladene erst den Bestätigungslink in seiner E-Mail öffnen).
+
 ## Was kann wer?
 
 | Aktion | Eltern (Admin) | Kinder (Mitglied) |

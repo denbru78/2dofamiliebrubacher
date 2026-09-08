@@ -2,7 +2,8 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import type { ReactNode } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from './supabase'
-import type { Achievement, Activity, Category, Notification, Profile, Role, Settings, Task, TaskInput, WeeklyResult } from './types'
+import type { Achievement, Activity, Category, Invite, InvitePreview, Notification, Profile, Role, Settings, Task, TaskInput, WeeklyResult } from './types'
+import { clearPendingInvite, getPendingInvite } from './invites'
 import { computeNewUnlocks } from './achievements'
 import { CATEGORIES, categoryEmoji } from './constants'
 import { nextDueDate, resolveDueDate, startOfWeek } from './dates'
@@ -51,6 +52,14 @@ interface StoreValue {
   toast: (text: string, kind?: ToastMsg['kind'], action?: ToastAction) => void
   reload: () => Promise<void>
   signIn: (email: string, password: string) => Promise<string | null>
+  signUp: (email: string, password: string) => Promise<{ error: string | null; needsConfirm: boolean }>
+  invitePreview: (token: string) => Promise<InvitePreview>
+  acceptInvite: (token: string, displayName?: string) => Promise<string | null>
+  createFamily: (name: string, displayName?: string) => Promise<string | null>
+  invites: Invite[]
+  createInvite: (role: Role, label?: string) => Promise<{ token?: string; error?: string }>
+  revokeInvite: (id: string) => Promise<string | null>
+  inviteError: string | null
   signOut: () => Promise<void>
   createTask: (input: TaskInput) => Promise<string | null>
   updateTask: (id: string, input: TaskInput, scope?: 'single' | 'series') => Promise<string | null>
@@ -96,6 +105,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [familyName, setFamilyName] = useState('Unsere Familie')
   const [detailTaskId, setDetailTaskId] = useState<string | null>(null)
   const [notifications, setNotifications] = useState<Notification[]>([])
+  const [invites, setInvites] = useState<Invite[]>([])
+  const [inviteError, setInviteError] = useState<string | null>(null)
+  const acceptingRef = useRef(false)
   const [tasks, setTasks] = useState<Task[]>([])
   const [activities, setActivities] = useState<Activity[]>([])
   const [achievements, setAchievements] = useState<Achievement[]>([])
@@ -153,6 +165,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const nRes = await supabase.from('notifications').select('*').order('created_at', { ascending: false }).limit(100)
       if (!nRes.error) setNotifications((nRes.data ?? []) as Notification[])
       const fRes = await supabase.from('families').select('name').limit(1)
+      const iRes = await supabase.from('family_invites').select('*').order('created_at', { ascending: false })
+      setInvites(iRes.error ? [] : ((iRes.data ?? []) as Invite[]))
       if (!fRes.error && fRes.data && fRes.data[0]) setFamilyName((fRes.data[0] as { name: string }).name)
       if (pRes.error) throw pRes.error
       if (sRes.error) throw sRes.error
@@ -181,7 +195,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setActivities((aRes.data ?? []) as Activity[])
       setAchievements((achRes.data ?? []) as Achievement[])
       setAllCategories((cRes.data ?? []) as Category[])
-      if (!me) setDataError('Für diesen Benutzer gibt es noch kein Familienprofil. Bitte den SQL-Block in Supabase (erneut) ausführen.')
+      if (!me) setDataError(null)
     } catch (e) {
       setDataError(errMsg(e))
     }
@@ -214,6 +228,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'settings' }, () => reload())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'categories' }, () => reload())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, () => reload())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'family_invites' }, () => reload())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'weekly_results' }, () => reload())
       .subscribe()
     const onVisible = () => {
@@ -227,6 +242,29 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       window.removeEventListener('online', onVisible)
     }
   }, [userId, reload])
+
+  // ---- Offene Einladung nach Anmeldung automatisch annehmen ----------------
+  useEffect(() => {
+    if (!userId || dataLoading || acceptingRef.current) return
+    const token = getPendingInvite()
+    if (!token) return
+    acceptingRef.current = true
+    ;(async () => {
+      const { data, error } = await supabase.rpc('accept_invite', { p_token: token })
+      if (error) {
+        setInviteError(errMsg(error))
+        // Bereits Mitglied dieser Familie → Einladung einfach verwerfen
+        if (profile) clearPendingInvite()
+      } else {
+        clearPendingInvite()
+        setInviteError(null)
+        const row = Array.isArray(data) ? (data[0] as { family_name?: string } | undefined) : undefined
+        toast(`Willkommen bei ${row?.family_name ?? 'eurer Familie'}!`, 'success')
+        await reload()
+      }
+      acceptingRef.current = false
+    })()
+  }, [userId, dataLoading, profile, reload, toast])
 
   // ---- Erfolge automatisch freischalten --------------------------------
   useEffect(() => {
@@ -289,6 +327,58 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const signIn = useCallback(async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password })
     return error ? errMsg(error) : null
+  }, [])
+
+  const signUp = useCallback(async (email: string, password: string) => {
+    const { data, error } = await supabase.auth.signUp({ email: email.trim(), password })
+    if (error) return { error: errMsg(error), needsConfirm: false }
+    return { error: null, needsConfirm: !data.session }
+  }, [])
+
+  const invitePreview = useCallback(async (token: string): Promise<InvitePreview> => {
+    const { data, error } = await supabase.rpc('invite_preview', { p_token: token })
+    if (error) return { family_name: null, invited_role: null, valid: false, reason: errMsg(error) }
+    const row = Array.isArray(data) ? (data[0] as InvitePreview | undefined) : undefined
+    return row ?? { family_name: null, invited_role: null, valid: false, reason: 'Einladung nicht gefunden' }
+  }, [])
+
+  const acceptInvite = useCallback(
+    async (token: string, displayName?: string) => {
+      const { error } = await supabase.rpc('accept_invite', { p_token: token, p_display_name: displayName ?? null })
+      if (error) return errMsg(error)
+      clearPendingInvite()
+      setInviteError(null)
+      await reload()
+      return null
+    },
+    [reload],
+  )
+
+  const createFamily = useCallback(
+    async (name: string, displayName?: string) => {
+      const { error } = await supabase.rpc('create_family', { p_name: name, p_display_name: displayName ?? null })
+      if (error) return errMsg(error)
+      await reload()
+      return null
+    },
+    [reload],
+  )
+
+  const createInvite = useCallback(async (role: Role, label?: string) => {
+    const { data, error } = await supabase.rpc('create_invite', { p_role: role, p_days: 7, p_label: label ?? null })
+    if (error) return { error: errMsg(error) }
+    const row = Array.isArray(data) ? (data[0] as { token?: string } | undefined) : undefined
+    if (!row?.token) return { error: 'Einladung konnte nicht erstellt werden.' }
+    const iRes = await supabase.from('family_invites').select('*').order('created_at', { ascending: false })
+    if (!iRes.error) setInvites((iRes.data ?? []) as Invite[])
+    return { token: row.token }
+  }, [])
+
+  const revokeInvite = useCallback(async (id: string) => {
+    const { error } = await supabase.from('family_invites').delete().eq('id', id)
+    if (error) return errMsg(error)
+    setInvites((all) => all.filter((i) => i.id !== id))
+    return null
   }, [])
 
   const signOut = useCallback(async () => {
@@ -629,6 +719,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     toast,
     reload,
     signIn,
+    signUp,
+    invitePreview,
+    acceptInvite,
+    createFamily,
+    invites,
+    createInvite,
+    revokeInvite,
+    inviteError,
     signOut,
     createTask,
     updateTask,

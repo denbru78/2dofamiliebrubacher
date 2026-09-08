@@ -190,10 +190,10 @@ export function SettingsPage() {
           </div>
           <div className="task-actions" style={{ marginTop: 12 }}>
             <button className="btn sm secondary" onClick={share}>
-              Einladung teilen
+              App-Link teilen
             </button>
           </div>
-          <div className="muted small" style={{ marginTop: 10 }}>Mitglieder verwalten (Name, Avatar, Rolle, deaktivieren): unter „Familie“ → „Mitglied verwalten“. Neue Logins legst du in Supabase an.</div>
+          <div className="muted small" style={{ marginTop: 10 }}>Mitglieder einladen und verwalten (Name, Avatar, Rolle, deaktivieren): unter „Familie“.</div>
         </div>
       )}
 

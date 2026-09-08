@@ -4,6 +4,8 @@ import type { Profile } from '../lib/types'
 import { useStore } from '../lib/store'
 import { Avatar } from '../components/Avatar'
 import { MemberEditSheet } from '../components/MemberEditSheet'
+import { InviteSheet } from '../components/InviteSheet'
+import { AppIcon } from '../components/AppIcon'
 import { IconChevron } from '../components/Icons'
 import { memberColor } from '../lib/colors'
 
@@ -14,6 +16,7 @@ interface Props {
 export function FamilyPage({ go }: Props) {
   const { allProfiles, tasks, isAdmin, achievements, settings, familyName } = useStore()
   const [editing, setEditing] = useState<Profile | null>(null)
+  const [inviting, setInviting] = useState(false)
   const open = useMemo(() => tasks.filter((t) => t.status === 'open' || t.status === 'claimed'), [tasks])
   const done = useMemo(() => tasks.filter((t) => t.status === 'done' || t.status === 'archived'), [tasks])
   const pool = open.filter((t) => t.is_pool)
@@ -28,6 +31,12 @@ export function FamilyPage({ go }: Props) {
           </p>
         </div>
       </div>
+
+      {isAdmin && (
+        <button className="btn block" style={{ marginBottom: 18 }} onClick={() => setInviting(true)}>
+          <AppIcon name="family" size={18} /> Mitglied einladen
+        </button>
+      )}
 
       <div className="member-grid">
         {allProfiles.map((p) => {
@@ -84,11 +93,12 @@ export function FamilyPage({ go }: Props) {
 
       {isAdmin && (
         <div className="muted small" style={{ padding: '4px 4px 0' }}>
-          Neue Mitglieder legst du in Supabase unter Authentication → Users an (siehe README). Sie erscheinen hier automatisch.
+          Neue Mitglieder lädst du per Link oder WhatsApp ein. Deaktivierte Mitglieder bleiben mit ihrer Historie erhalten.
         </div>
       )}
 
       {editing && <MemberEditSheet member={editing} onClose={() => setEditing(null)} />}
+      {inviting && <InviteSheet onClose={() => setInviting(false)} />}
     </div>
   )
 }

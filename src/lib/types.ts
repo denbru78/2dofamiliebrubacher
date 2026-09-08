@@ -26,6 +26,25 @@ export interface Settings {
   reminders_enabled: boolean
 }
 
+export interface Invite {
+  id: string
+  family_id: string
+  invited_role: Role
+  label: string | null
+  created_by: string | null
+  expires_at: string
+  used_at: string | null
+  used_by: string | null
+  created_at: string
+}
+
+export interface InvitePreview {
+  family_name: string | null
+  invited_role: Role | null
+  valid: boolean
+  reason: string | null
+}
+
 export interface Notification {
   id: string
   family_id: string

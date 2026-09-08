@@ -1882,3 +1882,29 @@ h2 {
   background: var(--prio-normal);
   border-color: var(--prio-normal);
 }
+
+/* ---------- Einladung ---------- */
+.invite-box {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  background: var(--sage-soft);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+}
+
+.invite-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--sage-deep);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+
+.btn.whatsapp {
+  background: #4fb36a;
+}
