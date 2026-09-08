@@ -133,8 +133,16 @@ export function TaskForm({ task, onClose, onGoToTasks }: Props) {
   const persist = async (data: TaskInput, scope: 'single' | 'series') => {
     setSaving(true)
     setError(null)
-    const err = task ? await updateTask(task.id, data, scope) : await createTask(data)
-    setSaving(false)
+    let err: string | null = null
+    try {
+      const work = task ? updateTask(task.id, data, scope) : createTask(data)
+      const limit = new Promise<string>((resolve) => window.setTimeout(() => resolve('Das Speichern dauert zu lange. Bitte Internetverbindung prüfen und erneut versuchen.'), 15000))
+      err = await Promise.race([work, limit])
+    } catch (e) {
+      err = e instanceof Error ? e.message : 'Speichern fehlgeschlagen.'
+    } finally {
+      setSaving(false)
+    }
     if (err) {
       setError(err)
       return
