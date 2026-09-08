@@ -3,7 +3,7 @@ import type { View } from '../App'
 import type { Task } from '../lib/types'
 import { useStore } from '../lib/store'
 import { dueState } from '../lib/dates'
-import { achievementDef } from '../lib/achievements'
+import { achievementView } from '../lib/achievements'
 import { Avatar } from '../components/Avatar'
 import { HeroIllustration } from '../components/HeroIllustration'
 import { QuickCapture } from '../components/QuickCapture'
@@ -66,8 +66,9 @@ export function StartPage({ go, onNew, onEdit }: Props) {
     const sorted = achievements.slice().sort((a, b) => b.unlocked_at.localeCompare(a.unlocked_at))
     return sorted[0]
   }, [achievements])
-  const latestDef = latest ? achievementDef(latest.key) : undefined
+  const latestDef = latest ? achievementView(latest) : undefined
   const latestWho = latest?.profile_id ? profileById(latest.profile_id) : undefined
+  const goalReached = done >= goal
 
   const countFor = (id: string) => open.filter((t) => t.assignee_ids.includes(id)).length
 
@@ -209,7 +210,7 @@ export function StartPage({ go, onNew, onEdit }: Props) {
         )}
       </div>
 
-      <button className="card progress-card card-btn" onClick={() => go('achievements')}>
+      <button className={`card progress-card card-btn ${done >= goal && goal > 0 ? 'reached' : ''}`} onClick={() => go('achievements')}>
         <div className="card-head">
           <h2>Wochenfortschritt</h2>
           <span className="muted small">
@@ -221,7 +222,7 @@ export function StartPage({ go, onNew, onEdit }: Props) {
         </div>
         <div className="progress-foot">
           <span>{progressText}</span>
-          <span className="pill">{pct} %</span>
+          <span className="pill">{done >= goal && goal > 0 ? 'Wochenziel geschafft' : `${pct} %`}</span>
         </div>
       </button>
 
@@ -236,7 +237,7 @@ export function StartPage({ go, onNew, onEdit }: Props) {
         {latestDef ? (
           <div className="ach-inline">
             <span className="ach-icon">
-              <AppIcon name={latestDef.emoji} size={24} />
+              <AppIcon name={latestDef.icon} size={24} />
             </span>
             <div>
               <div style={{ fontWeight: 700 }}>{latestDef.title}</div>

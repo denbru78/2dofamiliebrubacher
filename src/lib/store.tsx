@@ -2,8 +2,8 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import type { ReactNode } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from './supabase'
-import type { Achievement, Activity, Category, Notification, Profile, Role, Settings, Task, TaskInput } from './types'
-import { computeNewUnlocks, achievementDef } from './achievements'
+import type { Achievement, Activity, Category, Notification, Profile, Role, Settings, Task, TaskInput, WeeklyResult } from './types'
+import { computeNewUnlocks } from './achievements'
 import { CATEGORIES, categoryEmoji } from './constants'
 import { nextDueDate, resolveDueDate, startOfWeek } from './dates'
 
@@ -43,6 +43,7 @@ interface StoreValue {
   tasks: Task[]
   activities: Activity[]
   achievements: Achievement[]
+  weeklyResults: WeeklyResult[]
   dataLoading: boolean
   dataError: string | null
   isAdmin: boolean
@@ -98,6 +99,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [tasks, setTasks] = useState<Task[]>([])
   const [activities, setActivities] = useState<Activity[]>([])
   const [achievements, setAchievements] = useState<Achievement[]>([])
+  const [weeklyResults, setWeeklyResults] = useState<WeeklyResult[]>([])
   const [dataLoading, setDataLoading] = useState(false)
   const [dataError, setDataError] = useState<string | null>(null)
   const [toasts, setToasts] = useState<ToastMsg[]>([])
@@ -145,6 +147,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         supabase.from('achievements').select('*'),
         supabase.from('categories').select('*').order('sort_order').order('name'),
       ])
+      const wRes = await supabase.from('weekly_results').select('*').order('week_start', { ascending: false }).limit(200)
+      if (!wRes.error) setWeeklyResults((wRes.data ?? []) as WeeklyResult[])
       const nRes = await supabase.from('notifications').select('*').order('created_at', { ascending: false }).limit(100)
       if (!nRes.error) setNotifications((nRes.data ?? []) as Notification[])
       const fRes = await supabase.from('families').select('name').limit(1)
@@ -181,6 +185,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setAchievements([])
       setAllCategories([])
       setNotifications([])
+      setWeeklyResults([])
       setSettings(DEFAULT_SETTINGS)
       return
     }
@@ -198,6 +203,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'settings' }, () => reload())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'categories' }, () => reload())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, () => reload())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'weekly_results' }, () => reload())
       .subscribe()
     const onVisible = () => {
       if (document.visibilityState === 'visible') reload()
@@ -214,7 +220,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   // ---- Erfolge automatisch freischalten --------------------------------
   useEffect(() => {
     if (!profile || unlockingRef.current || dataLoading || !settings.achievements_enabled) return
-    const unlocks = computeNewUnlocks(tasks, activities, profiles, settings, achievements)
+    const unlocks = computeNewUnlocks(tasks, activities, profiles, settings, achievements, weeklyResults)
     // Mitglieder dürfen nur eigene und Familien-Erfolge eintragen
     const allowed = unlocks
       .filter((u) => profile.role === 'admin' || u.profile_id === null || u.profile_id === profile.id)
@@ -224,15 +230,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     unlockingRef.current = true
     ;(async () => {
       try {
-        const rows = allowed.map((u) => ({ family_id: profile.family_id, profile_id: u.profile_id, key: u.key }))
+        const rows = allowed.map((u) => ({ family_id: profile.family_id, profile_id: u.profile_id, key: u.key, title: u.title, description: u.description, icon_key: u.icon_key }))
         const { data, error } = await supabase.from('achievements').insert(rows).select('*')
         if (!error && data) {
           setAchievements((a) => [...a, ...(data as Achievement[])])
           for (const u of allowed) {
-            if (u.profile_id === null || u.profile_id === profile.id) {
-              const def = achievementDef(u.key)
-              if (def) toast(`Neuer Erfolg: ${def.title}`, 'info')
-            }
+            if (u.profile_id === null) toast(`Gemeinsam geschafft: ${u.title}`, 'info')
+            else if (u.profile_id === profile.id) toast(`Neuer Erfolg: ${u.title}`, 'info')
           }
         } else if (error) {
           // Duplikat (z. B. gleichzeitig von einem anderen Gerät) – einfach neu laden
@@ -242,7 +246,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         unlockingRef.current = false
       }
     })()
-  }, [tasks, activities, profiles, settings, achievements, profile, dataLoading, toast, reload])
+  }, [tasks, activities, profiles, settings, achievements, weeklyResults, profile, dataLoading, toast, reload])
 
   // ---- Helfer -----------------------------------------------------------
   const isAdmin = profile?.role === 'admin'
@@ -621,6 +625,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     tasks,
     activities,
     achievements,
+    weeklyResults,
     dataLoading,
     dataError,
     isAdmin,

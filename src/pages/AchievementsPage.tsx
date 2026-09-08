@@ -1,36 +1,17 @@
 import { useStore } from '../lib/store'
-import { ACHIEVEMENT_DEFS } from '../lib/achievements'
+import { ACHIEVEMENT_DEFS, weeklyStats } from '../lib/achievements'
 import { Avatar } from '../components/Avatar'
-import { formatDate, startOfWeek, weekKey } from '../lib/dates'
+import { formatDate } from '../lib/dates'
 import { useMemo } from 'react'
 import { IconBack } from '../components/Icons'
 import { AppIcon } from '../components/AppIcon'
 
 export function AchievementsPage({ onBack }: { onBack: () => void }) {
-  const { achievements, profiles, profile, tasks, settings, weekProgress } = useStore()
+  const { achievements, profiles, profile, tasks, weeklyResults, weekProgress } = useStore()
   const doneTasks = useMemo(() => tasks.filter((t) => (t.status === 'done' || t.status === 'archived') && t.completed_at), [tasks])
   const doneTotal = doneTasks.length
 
-  // Familienserie: aufeinanderfolgende Wochen mit erreichtem Wochenziel
-  const streak = useMemo(() => {
-    const counts = new Map<string, number>()
-    for (const t of doneTasks) {
-      const k = weekKey(new Date(t.completed_at as string))
-      counts.set(k, (counts.get(k) ?? 0) + 1)
-    }
-    const goal = Math.max(1, settings.weekly_goal)
-    let n = 0
-    const cursor = startOfWeek(new Date())
-    // Laufende Woche zählt nur, wenn das Ziel schon erreicht ist
-    if ((counts.get(weekKey(cursor)) ?? 0) >= goal) n++
-    cursor.setDate(cursor.getDate() - 7)
-    for (let i = 0; i < 260; i++) {
-      if ((counts.get(weekKey(cursor)) ?? 0) >= goal) n++
-      else break
-      cursor.setDate(cursor.getDate() - 7)
-    }
-    return n
-  }, [doneTasks, settings.weekly_goal])
+  const { reachedCount, streak } = useMemo(() => weeklyStats(weeklyResults), [weeklyResults])
   const personal = ACHIEVEMENT_DEFS.filter((d) => d.scope === 'personal')
   const family = ACHIEVEMENT_DEFS.filter((d) => d.scope === 'family')
 
@@ -49,7 +30,7 @@ export function AchievementsPage({ onBack }: { onBack: () => void }) {
         </div>
       </div>
 
-      <div className="stats-grid">
+      <div className="stats-grid four">
         <div className="stat">
           <span className="stat-value">{weekProgress.done}</span>
           <span className="stat-label">diese Woche erledigt</span>
@@ -59,12 +40,29 @@ export function AchievementsPage({ onBack }: { onBack: () => void }) {
           <span className="stat-label">{streak === 1 ? 'Woche' : 'Wochen'} in Folge Wochenziel</span>
         </div>
         <div className="stat">
+          <span className="stat-value">{reachedCount}</span>
+          <span className="stat-label">Wochenziele insgesamt</span>
+        </div>
+        <div className="stat">
           <span className="stat-value">{doneTotal}</span>
           <span className="stat-label">insgesamt geschafft</span>
         </div>
       </div>
 
-      <h2 style={{ margin: '4px 0 10px' }}>Gemeinsam</h2>
+      <div className="progress-card card" style={{ marginBottom: 18 }}>
+        <div className="card-head">
+          <h2>Diese Woche</h2>
+          <span className="muted small">
+            {weekProgress.done} von {weekProgress.goal}
+          </span>
+        </div>
+        <div className="progress-bar" role="progressbar" aria-valuenow={weekProgress.done} aria-valuemin={0} aria-valuemax={weekProgress.goal}>
+          <span style={{ width: `${Math.min(100, Math.round((weekProgress.done / Math.max(1, weekProgress.goal)) * 100))}%` }} />
+        </div>
+        <div className="muted small">Montag bis Sonntag · jede erledigte Aufgabe zählt einen Punkt · gemeinsam, ohne Rangliste</div>
+      </div>
+
+      <h2 style={{ margin: '4px 0 10px' }}>Gemeinsam geschafft</h2>
       <div className="ach-grid" style={{ marginBottom: 20 }}>
         {family.map((d) => {
           const u = familyUnlocked(d.key)
@@ -100,6 +98,10 @@ export function AchievementsPage({ onBack }: { onBack: () => void }) {
                 )}
               </span>
               <span className="ach-desc">{d.description}</span>
+              {mine && (() => {
+                const a = achievements.find((x) => x.key === d.key && x.profile_id === profile?.id)
+                return a ? <span className="muted small">Erreicht am {formatDate(a.unlocked_at)}</span> : null
+              })()}
               <span className="avatar-stack ach-people">
                 {ids.map((id) => {
                   const p = profiles.find((x) => x.id === id)

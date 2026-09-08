@@ -89,6 +89,18 @@ export interface Achievement {
   profile_id: string | null
   key: string
   unlocked_at: string
+  title: string | null
+  description: string | null
+  icon_key: string | null
+}
+
+export interface WeeklyResult {
+  family_id: string
+  week_start: string
+  done_count: number
+  goal: number
+  reached: boolean
+  reached_at: string | null
 }
 
 export interface TaskInput {

@@ -1767,3 +1767,40 @@ h2 {
   justify-content: center;
   flex: 0 0 auto;
 }
+
+/* ---------- Wochenziel erreicht ---------- */
+.progress-card.reached {
+  background: linear-gradient(135deg, #ffffff 0%, var(--sage-soft) 100%);
+  animation: reached-pop 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.progress-card.reached .progress-bar > span {
+  background: linear-gradient(90deg, var(--sage), var(--sage-deep));
+}
+
+.progress-card.reached .pill {
+  background: var(--sage);
+  color: #fff;
+}
+
+@keyframes reached-pop {
+  0% {
+    transform: scale(0.985);
+  }
+  60% {
+    transform: scale(1.01);
+  }
+  100% {
+    transform: none;
+  }
+}
+
+.stats-grid.four {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+@media (min-width: 560px) {
+  .stats-grid.four {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
