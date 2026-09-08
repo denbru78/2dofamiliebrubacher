@@ -1,4 +1,4 @@
-# Familien-Liste – Einrichtung in 4 Schritten
+# Unser Plan – Einrichtung in 4 Schritten
 
 Du brauchst nichts zu programmieren. Alles, was du tun musst, ist Klicken und Einfügen.
 
@@ -122,3 +122,37 @@ familien-liste/
 - Im Frontend liegt nur der öffentliche Supabase-Publishable-Key. Der `service_role`-Key darf nirgends in Code, Repository oder Netlify-Einstellungen auftauchen.
 - Mitglieder werden nur deaktiviert, nie hart gelöscht; Historie bleibt erhalten.
 - Prüfen: In Supabase → SQL Editor `select * from public.security_check();` ausführen – jede Tabelle muss `rls_aktiv = true` zeigen.
+
+## Pflichteinstellungen in Supabase (einmalig)
+
+| Wo | Was |
+|---|---|
+| Authentication → URL Configuration → Site URL | eure Netlify-Adresse, z. B. `https://2dofamilie.netlify.app` |
+| Authentication → URL Configuration → Redirect URLs | dieselbe Adresse (nötig für Passwort-Reset und E-Mail-Bestätigung) |
+| Authentication → Sign In / Providers | „Allow new users to sign up“ an; „Confirm email“ nach Wunsch (aus = Eingeladene können sofort loslegen) |
+| Database → Extensions | optional `pg_cron` aktivieren (automatische Archivierung nachts; sonst beim App-Start durch Eltern) |
+
+**Einladungs-Flow:** Familie → Mitglied einladen → Rolle wählen → Link erstellen → per WhatsApp teilen oder kopieren. Der Link (`…/#invite=…`) ist 7 Tage gültig und einmalig. Der Eingeladene registriert sich oder meldet sich an, bestätigt und ist Mitglied der Familie.
+
+**Passwort-Reset:** Anmeldeseite → „Passwort vergessen“ → E-Mail → Link öffnet die App → neues Passwort.
+
+**PWA-Installation:** iPhone: Safari → Teilen → „Zum Home-Bildschirm“. Android: Chrome-Menü → „App installieren“. Immer über das Startbildschirm-Symbol öffnen.
+
+## Terminologie-Tabelle (Vorgabe ↔ Implementierung)
+
+| Vorgabe in den Spezifikationen | Tatsächlich im Projekt |
+|---|---|
+| `task_history` | `task_activity` (Spalten `action`, `actor_id` = performed_by, `metadata`, `created_at`) |
+| `taken` | `claimed` |
+| `task_assignees` / `assigned_to` | `tasks.assignee_ids` (Liste) |
+| `is_active` | `profiles.active` |
+| `user_id` | `profiles.id` (= Auth-Nutzer-ID) |
+| `avatar_url` | `profiles.avatar` |
+| `achievement_type` / `earned_at` | `achievements.key` / `unlocked_at` |
+| `recurrence_type` / `recurrence_enabled` | `tasks.recurrence` (`recurrence_enabled` wird automatisch mitgeführt) |
+| `one_day_before` (Erinnerung) | `day_before` |
+| `families.weekly_goal` u. a. | Tabelle `settings` (priorities_enabled, weekly_goal, kids_can_claim_pool, achievements_enabled, reminders_enabled) |
+| Kategorien „Haus, Auto, Kaufen, Familie“ | Vollnamen „Haus & Haushalt“, „Auto & Mobilität“, „Besorgen & Kaufen“, „Familie & Kinder“ – Kurzform in Chips |
+| Familienname | `families.name`; App-Name ist immer „Unser Plan“ |
+
+Statusmodell: `open` (Offen) · `claimed` (Übernommen, logisch offen) · `done` (Erledigt) · `archived` (Archiviert). Überfällig = `due_date < heute` und Status nicht done/archived (berechnet, kein Status). Pool: `is_pool = true` ⇔ `assignee_ids` leer (Trigger). Genau eine Familie pro Nutzerkonto.

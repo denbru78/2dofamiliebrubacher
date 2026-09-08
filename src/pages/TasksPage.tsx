@@ -235,7 +235,7 @@ export function TasksPage({ personFilter, setPersonFilter, urgentOnly, setUrgent
             {f.scope === 'archive'
               ? 'Das Archiv ist leer. Erledigte Aufgaben wandern nach 30 Tagen automatisch hierher.'
               : f.query
-                ? `Nichts gefunden für „${f.query}“.`
+                ? 'Keine Treffer gefunden.'
                 : doneView
                   ? 'Noch nichts Erledigtes mit diesen Filtern.'
                   : 'Hier ist gerade nichts offen.'}

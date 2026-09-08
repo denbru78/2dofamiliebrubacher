@@ -62,6 +62,8 @@ export function AchievementsPage({ onBack }: { onBack: () => void }) {
         <div className="muted small">Montag bis Sonntag · jede erledigte Aufgabe zählt einen Punkt · gemeinsam, ohne Rangliste</div>
       </div>
 
+      {achievements.length === 0 && <div className="empty" style={{ paddingTop: 4 }}>Noch keine Erfolge. Der erste kommt mit der ersten erledigten Aufgabe.</div>}
+
       <h2 style={{ margin: '4px 0 10px' }}>Gemeinsam geschafft</h2>
       <div className="ach-grid" style={{ marginBottom: 20 }}>
         {family.map((d) => {
