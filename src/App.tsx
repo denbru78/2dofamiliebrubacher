@@ -14,6 +14,7 @@ import { AchievementsPage } from './pages/AchievementsPage'
 import { FamilyPage } from './pages/FamilyPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { NoFamilyPage } from './pages/NoFamilyPage'
+import { ResetPasswordPage } from './pages/ResetPasswordPage'
 import { captureInviteFromUrl } from './lib/invites'
 
 captureInviteFromUrl()
@@ -21,7 +22,7 @@ captureInviteFromUrl()
 export type View = 'start' | 'tasks' | 'pool' | 'achievements' | 'family' | 'settings'
 
 export default function App() {
-  const { session, authLoading, profile, dataLoading, dataError, isAdmin, reload, signOut, tasks, detailTaskId, closeTask } = useStore()
+  const { session, authLoading, profile, dataLoading, dataError, isAdmin, reload, signOut, tasks, detailTaskId, closeTask, recovery } = useStore()
   const [view, setView] = useState<View>('start')
   const [personFilter, setPersonFilter] = useState('all')
   const [urgentOnly, setUrgentOnly] = useState(false)
@@ -62,6 +63,15 @@ export default function App() {
     return (
       <>
         <LoginPage />
+        <Toasts />
+      </>
+    )
+  }
+
+  if (recovery) {
+    return (
+      <>
+        <ResetPasswordPage />
         <Toasts />
       </>
     )

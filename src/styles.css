@@ -1908,3 +1908,33 @@ h2 {
 .btn.whatsapp {
   background: #4fb36a;
 }
+
+/* ---------- Login / Onboarding ---------- */
+.auth-links {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.auth-links .link-btn {
+  color: var(--sage-deep);
+  min-height: 44px;
+}
+
+.option-card {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+  padding: 14px;
+  margin-bottom: 10px;
+  min-height: 64px;
+}
+
+.option-card:active {
+  transform: scale(0.99);
+}

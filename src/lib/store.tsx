@@ -52,7 +52,11 @@ interface StoreValue {
   toast: (text: string, kind?: ToastMsg['kind'], action?: ToastAction) => void
   reload: () => Promise<void>
   signIn: (email: string, password: string) => Promise<string | null>
-  signUp: (email: string, password: string) => Promise<{ error: string | null; needsConfirm: boolean }>
+  signUp: (email: string, password: string, displayName: string) => Promise<{ error: string | null; needsConfirm: boolean }>
+  resetPassword: (email: string) => Promise<string | null>
+  updatePassword: (password: string) => Promise<string | null>
+  recovery: boolean
+  clearRecovery: () => void
   invitePreview: (token: string) => Promise<InvitePreview>
   acceptInvite: (token: string, displayName?: string) => Promise<string | null>
   createFamily: (name: string, displayName?: string) => Promise<string | null>
@@ -87,7 +91,15 @@ function errMsg(e: unknown): string {
     const m = String((e as { message?: unknown }).message ?? '')
     if (m.includes('Keine Berechtigung') || m.includes('Nur Eltern') || m.includes('Mitglieder dürfen')) return 'Dafür fehlt dir die Berechtigung.'
     if (m.includes('Invalid login credentials')) return 'E-Mail oder Passwort ist falsch.'
-    if (m.includes('Email not confirmed')) return 'Die E-Mail-Adresse ist noch nicht bestätigt.'
+    if (m.includes('Email not confirmed')) return 'Die E-Mail-Adresse ist noch nicht bestätigt. Bitte den Link in der Bestätigungs-Mail öffnen.'
+    if (m.includes('already registered') || m.includes('already been registered')) return 'Diese E-Mail-Adresse ist schon registriert. Bitte anmelden oder „Passwort vergessen“ nutzen.'
+    if (m.includes('Password should be') || m.includes('at least 6')) return 'Das Passwort braucht mindestens 6 Zeichen.'
+    if (m.includes('rate limit') || m.includes('Too many')) return 'Zu viele Versuche. Bitte in ein paar Minuten noch einmal.'
+    if (m.includes('Signups not allowed') || m.includes('signups')) return 'Registrierungen sind derzeit deaktiviert.'
+    if (m.includes('Einladung') || m.includes('Konto gehört') || m.includes('Bitte zuerst anmelden')) return m
+    if (m.includes('permission denied') || m.includes('violates row-level security')) return 'Dafür fehlt dir die Berechtigung.'
+    if (m.includes('New password should be different')) return 'Das neue Passwort muss sich vom alten unterscheiden.'
+    if (m.includes('invalid') && m.includes('email')) return 'Bitte eine gültige E-Mail-Adresse eingeben.'
     if (m.includes('Failed to fetch') || m.includes('NetworkError')) return 'Keine Verbindung. Bitte Internet prüfen.'
     return m
   }
@@ -97,6 +109,13 @@ function errMsg(e: unknown): string {
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [authLoading, setAuthLoading] = useState(true)
+  const [recovery, setRecovery] = useState(() => {
+    try {
+      return window.location.hash.includes('type=recovery')
+    } catch {
+      return false
+    }
+  })
   const [profile, setProfile] = useState<Profile | null>(null)
   const [allProfiles, setAllProfiles] = useState<Profile[]>([])
   const profiles = useMemo(() => allProfiles.filter((p) => p.active !== false), [allProfiles])
@@ -135,9 +154,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setSession(data.session)
       setAuthLoading(false)
     })
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
       setSession(s)
       setAuthLoading(false)
+      if (event === 'PASSWORD_RECOVERY') setRecovery(true)
     })
     return () => {
       mounted = false
@@ -329,11 +349,38 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     return error ? errMsg(error) : null
   }, [])
 
-  const signUp = useCallback(async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signUp({ email: email.trim(), password })
+  const signUp = useCallback(async (email: string, password: string, displayName: string) => {
+    const { data, error } = await supabase.auth.signUp({
+      email: email.trim(),
+      password,
+      options: { data: { display_name: displayName.trim() }, emailRedirectTo: window.location.origin },
+    })
     if (error) return { error: errMsg(error), needsConfirm: false }
+    // Bei aktivierter E-Mail-Bestätigung liefert Supabase für bereits registrierte Adressen einen Platzhalter ohne identities
+    if (data.user && Array.isArray((data.user as { identities?: unknown[] }).identities) && (data.user as { identities?: unknown[] }).identities?.length === 0) {
+      return { error: 'Diese E-Mail-Adresse ist schon registriert. Bitte anmelden oder „Passwort vergessen“ nutzen.', needsConfirm: false }
+    }
     return { error: null, needsConfirm: !data.session }
   }, [])
+
+  const resetPassword = useCallback(async (email: string) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: window.location.origin })
+    return error ? errMsg(error) : null
+  }, [])
+
+  const updatePassword = useCallback(async (password: string) => {
+    const { error } = await supabase.auth.updateUser({ password })
+    if (error) return errMsg(error)
+    setRecovery(false)
+    try {
+      window.history.replaceState({}, '', window.location.pathname)
+    } catch {
+      /* ignorieren */
+    }
+    return null
+  }, [])
+
+  const clearRecovery = useCallback(() => setRecovery(false), [])
 
   const invitePreview = useCallback(async (token: string): Promise<InvitePreview> => {
     const { data, error } = await supabase.rpc('invite_preview', { p_token: token })
@@ -720,6 +767,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     reload,
     signIn,
     signUp,
+    resetPassword,
+    updatePassword,
+    recovery,
+    clearRecovery,
     invitePreview,
     acceptInvite,
     createFamily,

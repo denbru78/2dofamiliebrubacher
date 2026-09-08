@@ -68,6 +68,10 @@ Optional (nur falls du das Supabase-Projekt später wechselst): Unter **Site con
 
 ---
 
+## Passwort vergessen
+
+Auf der Anmeldeseite „Passwort vergessen“ → E-Mail eingeben → Link in der Mail öffnen → neues Passwort setzen. Damit der Link zur App zurückführt, einmalig in Supabase unter **Authentication → URL Configuration** die **Site URL** auf eure Netlify-Adresse setzen (z. B. `https://2dofamilie.netlify.app`) und dieselbe Adresse bei **Redirect URLs** eintragen.
+
 ## Weitere Mitglieder einladen (z. B. Oma, Opa)
 
 In der App unter **Familie → Mitglied einladen**: Rolle wählen, Link erstellen, per WhatsApp teilen oder kopieren.
