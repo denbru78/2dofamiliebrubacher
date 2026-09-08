@@ -18,6 +18,8 @@ export function TaskCard({ task, onEdit, compact = false, showHistory = false, s
   const isDone = task.status === 'done' || task.status === 'archived'
   const isMine = !!profile && task.assignee_ids.includes(profile.id)
   const canComplete = !isDone && (isAdmin || isMine)
+  const UNDO_MS = 5 * 60 * 1000
+  const canUndo = isDone && !!profile && task.completed_by === profile.id && !!task.completed_at && Date.now() - new Date(task.completed_at).getTime() < UNDO_MS
   const canClaim = !isDone && task.is_pool
   const assignees = task.assignee_ids.map((id) => profileById(id)).filter((p): p is NonNullable<typeof p> => !!p)
   const ds = dueState(task.due_kind, task.due_date)
@@ -30,7 +32,8 @@ export function TaskCard({ task, onEdit, compact = false, showHistory = false, s
 
   const onCheck = () => {
     if (isDone) {
-      if (isAdmin) run(() => reopenTask(task.id))
+      if (isAdmin || canUndo) run(() => reopenTask(task.id))
+      else toast('Nur Mama oder Papa können das wieder öffnen.', 'info')
       return
     }
     if (canComplete) run(() => completeTask(task.id))
@@ -46,7 +49,7 @@ export function TaskCard({ task, onEdit, compact = false, showHistory = false, s
         className={`check ${isDone ? 'done' : ''}`}
         onClick={onCheck}
         aria-label={isDone ? 'Erledigt' : 'Als erledigt markieren'}
-        disabled={isDone && !isAdmin}
+        disabled={isDone && !isAdmin && !canUndo}
       >
         {isDone && <IconCheck />}
       </button>
@@ -110,10 +113,10 @@ export function TaskCard({ task, onEdit, compact = false, showHistory = false, s
             )}
           </div>
         )}
-        {!compact && isDone && isAdmin && (
+        {!compact && isDone && (isAdmin || canUndo) && (
           <div className="task-actions">
             <button className="btn sm secondary" onClick={() => run(() => reopenTask(task.id))}>
-              Wieder öffnen
+              {isAdmin ? 'Wieder öffnen' : 'Rückgängig'}
             </button>
           </div>
         )}

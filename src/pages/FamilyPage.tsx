@@ -11,7 +11,7 @@ interface Props {
 }
 
 export function FamilyPage({ go }: Props) {
-  const { profiles, tasks, isAdmin, achievements } = useStore()
+  const { allProfiles, tasks, isAdmin, achievements } = useStore()
   const [editing, setEditing] = useState<Profile | null>(null)
   const open = useMemo(() => tasks.filter((t) => t.status === 'open' || t.status === 'claimed'), [tasks])
   const done = useMemo(() => tasks.filter((t) => t.status === 'done' || t.status === 'archived'), [tasks])
@@ -30,7 +30,7 @@ export function FamilyPage({ go }: Props) {
 
       <div className="card">
         {isAdmin && <div className="muted small" style={{ marginBottom: 8 }}>Als Elternteil kannst du Name, Avatar und Rolle aller Mitglieder ändern (Stift).</div>}
-        {profiles.map((p) => {
+        {allProfiles.map((p) => {
           const mineOpen = open.filter((t) => t.assignee_ids.includes(p.id)).length
           const mineDone = done.filter((t) => t.completed_by === p.id).length
           return (
@@ -40,7 +40,7 @@ export function FamilyPage({ go }: Props) {
                 <span>
                   <span style={{ fontWeight: 700 }}>{p.display_name}</span>
                   <span className="muted small" style={{ display: 'block' }}>
-                    {p.role === 'admin' ? 'Elternteil' : 'Mitglied'} · {mineOpen} offen · {mineDone} erledigt
+                    {p.active === false ? 'Deaktiviert · ' : ''}{p.role === 'admin' ? 'Elternteil' : 'Mitglied'} · {mineOpen} offen · {mineDone} erledigt
                   </span>
                 </span>
                 <span className="muted" style={{ marginLeft: 'auto' }}>

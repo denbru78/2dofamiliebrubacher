@@ -21,8 +21,10 @@ create table if not exists public.profiles (
   display_name  text not null,
   role          text not null default 'member' check (role in ('admin','member')),
   avatar        text not null default '🙂',
+  active        boolean not null default true,
   created_at    timestamptz not null default now()
 );
+alter table public.profiles add column if not exists active boolean not null default true;
 
 create table if not exists public.settings (
   family_id          uuid primary key references public.families(id) on delete cascade,
@@ -116,7 +118,7 @@ returns uuid
 language sql stable security definer
 set search_path = public
 as $$
-  select family_id from public.profiles where id = auth.uid();
+  select family_id from public.profiles where id = auth.uid() and active;
 $$;
 
 create or replace function public.is_admin()
@@ -124,7 +126,7 @@ returns boolean
 language sql stable security definer
 set search_path = public
 as $$
-  select coalesce((select role = 'admin' from public.profiles where id = auth.uid()), false);
+  select coalesce((select role = 'admin' and active from public.profiles where id = auth.uid()), false);
 $$;
 
 -- ---------------------------------------------------------------------
@@ -228,12 +230,18 @@ begin
     if old.is_pool and old.status = 'open'
        and new.is_pool = false and new.status = 'claimed'
        and new.assignee_ids = array[uid] then
-      null;
+      null; -- Pool übernehmen
     elsif old.status in ('open','claimed') and new.status = 'done'
        and uid = any(old.assignee_ids)
        and new.assignee_ids = old.assignee_ids
        and new.is_pool = old.is_pool then
-      null;
+      null; -- eigene Aufgabe abhaken
+    elsif old.status = 'done' and new.status in ('open','claimed')
+       and old.completed_by = uid
+       and old.completed_at > now() - interval '5 minutes'
+       and new.assignee_ids = old.assignee_ids
+       and new.is_pool = old.is_pool then
+      null; -- Rückgängig innerhalb von 5 Minuten
     else
       raise exception 'Keine Berechtigung für diese Änderung';
     end if;
@@ -321,13 +329,16 @@ language plpgsql security definer
 set search_path = public
 as $$
 begin
-  if not public.is_admin() then
-    if new.role <> old.role or new.family_id <> old.family_id then
-      raise exception 'Rolle und Familie dürfen nicht geändert werden';
-    end if;
-  end if;
   if new.family_id <> old.family_id then
     raise exception 'Familie darf nicht geändert werden';
+  end if;
+  if not public.is_admin() then
+    if new.role <> old.role or new.active <> old.active then
+      raise exception 'Rolle und Status dürfen nicht geändert werden';
+    end if;
+  end if;
+  if new.id = auth.uid() and (new.active = false or new.role <> old.role) then
+    raise exception 'Eigene Rolle oder eigener Status können nicht geändert werden';
   end if;
   return new;
 end;
@@ -363,7 +374,7 @@ create policy families_update on public.families
 -- profiles
 drop policy if exists profiles_select on public.profiles;
 create policy profiles_select on public.profiles
-  for select to authenticated using (family_id = public.current_family_id());
+  for select to authenticated using (id = auth.uid() or family_id = public.current_family_id());
 
 drop policy if exists profiles_update_own on public.profiles;
 create policy profiles_update_own on public.profiles

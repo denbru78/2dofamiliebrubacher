@@ -1364,3 +1364,21 @@ details.more[open] summary::before {
   margin: 0 auto 12px;
   animation: pop 0.25s ease;
 }
+
+/* ---------- Toast mit Aktion ---------- */
+.toast.with-action {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  padding-right: 8px;
+}
+
+.toast-action {
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+  font-weight: 700;
+  padding: 6px 12px;
+  border-radius: 999px;
+  min-height: 34px;
+}

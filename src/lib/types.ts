@@ -10,6 +10,7 @@ export interface Profile {
   display_name: string
   role: Role
   avatar: string
+  active: boolean
   created_at: string
 }
 

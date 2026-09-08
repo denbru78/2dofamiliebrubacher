@@ -68,6 +68,20 @@ export default function App() {
     )
   }
 
+  if (profile && profile.active === false) {
+    return (
+      <div className="login">
+        <div className="login-card">
+          <h2>Konto deaktiviert</h2>
+          <p className="muted">Dieses Familienmitglied wurde von Mama oder Papa deaktiviert.</p>
+          <button className="btn secondary block" onClick={signOut}>
+            Abmelden
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   if (!profile) {
     return (
       <div className="login">

@@ -27,6 +27,7 @@ export function MemberEditSheet({ member, onClose }: { member: Profile; onClose:
   const [name, setName] = useState(member.display_name)
   const [avatar, setAvatar] = useState(member.avatar)
   const [role, setRole] = useState<Role>(member.role)
+  const [active, setActive] = useState<boolean>(member.active !== false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const isSelf = profile?.id === member.id
@@ -38,7 +39,7 @@ export function MemberEditSheet({ member, onClose }: { member: Profile; onClose:
     }
     setBusy(true)
     setError(null)
-    const err = await updateMemberProfile(member.id, { display_name: name.trim(), avatar, role })
+    const err = await updateMemberProfile(member.id, { display_name: name.trim(), avatar, role, active })
     setBusy(false)
     if (err) {
       setError(err)
@@ -78,6 +79,15 @@ export function MemberEditSheet({ member, onClose }: { member: Profile; onClose:
           </div>
           {isSelf && <div className="muted small" style={{ marginTop: 6 }}>Die eigene Rolle kann nicht geändert werden.</div>}
         </div>
+        {!isSelf && (
+          <div className="toggle-row" style={{ marginBottom: 14 }}>
+            <div>
+              <div style={{ fontWeight: 600 }}>Aktiv</div>
+              <div className="muted small">Deaktivierte Mitglieder können sich nicht mehr anmelden und werden ausgeblendet.</div>
+            </div>
+            <button className={`switch ${active ? 'on' : ''}`} onClick={() => setActive(!active)} role="switch" aria-checked={active} aria-label="Aktiv" />
+          </div>
+        )}
         {error && <div className="error">{error}</div>}
         <button className="btn block" onClick={save} disabled={busy}>
           {busy ? 'Speichern…' : 'Speichern'}

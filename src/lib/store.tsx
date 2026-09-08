@@ -6,10 +6,16 @@ import type { Achievement, Activity, Profile, Role, Settings, Task, TaskInput } 
 import { computeNewUnlocks, achievementDef } from './achievements'
 import { nextDueDate, resolveDueDate, startOfWeek } from './dates'
 
+export interface ToastAction {
+  label: string
+  onClick: () => void
+}
+
 export interface ToastMsg {
   id: number
   text: string
   kind: 'success' | 'info' | 'error'
+  action?: ToastAction
 }
 
 interface StoreValue {
@@ -17,6 +23,7 @@ interface StoreValue {
   authLoading: boolean
   profile: Profile | null
   profiles: Profile[]
+  allProfiles: Profile[]
   settings: Settings
   tasks: Task[]
   activities: Activity[]
@@ -25,7 +32,7 @@ interface StoreValue {
   dataError: string | null
   isAdmin: boolean
   toasts: ToastMsg[]
-  toast: (text: string, kind?: ToastMsg['kind']) => void
+  toast: (text: string, kind?: ToastMsg['kind'], action?: ToastAction) => void
   reload: () => Promise<void>
   signIn: (email: string, password: string) => Promise<string | null>
   signOut: () => Promise<void>
@@ -38,7 +45,7 @@ interface StoreValue {
   releaseTask: (id: string) => Promise<string | null>
   archiveTask: (id: string) => Promise<string | null>
   updateProfile: (patch: { display_name?: string; avatar?: string }) => Promise<string | null>
-  updateMemberProfile: (id: string, patch: { display_name?: string; avatar?: string; role?: Role }) => Promise<string | null>
+  updateMemberProfile: (id: string, patch: { display_name?: string; avatar?: string; role?: Role; active?: boolean }) => Promise<string | null>
   updateSettings: (patch: Partial<Pick<Settings, 'priorities_enabled' | 'weekly_goal'>>) => Promise<string | null>
   profileById: (id: string | null | undefined) => Profile | undefined
   weekProgress: { done: number; total: number; goal: number }
@@ -66,7 +73,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [authLoading, setAuthLoading] = useState(true)
   const [profile, setProfile] = useState<Profile | null>(null)
-  const [profiles, setProfiles] = useState<Profile[]>([])
+  const [allProfiles, setAllProfiles] = useState<Profile[]>([])
+  const profiles = useMemo(() => allProfiles.filter((p) => p.active !== false), [allProfiles])
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS)
   const [tasks, setTasks] = useState<Task[]>([])
   const [activities, setActivities] = useState<Activity[]>([])
@@ -78,10 +86,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const unlockingRef = useRef(false)
   const attemptedRef = useRef<Set<string>>(new Set())
 
-  const toast = useCallback((text: string, kind: ToastMsg['kind'] = 'success') => {
+  const toast = useCallback((text: string, kind: ToastMsg['kind'] = 'success', action?: ToastAction) => {
     const id = ++toastId.current
-    setToasts((t) => [...t, { id, text, kind }])
-    window.setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 2600)
+    const wrapped = action ? { label: action.label, onClick: () => { action.onClick(); setToasts((t) => t.filter((x) => x.id !== id)) } } : undefined
+    setToasts((t) => [...t, { id, text, kind, action: wrapped }])
+    window.setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), action ? 6000 : 2600)
   }, [])
 
   // ---- Auth -------------------------------------------------------------
@@ -124,7 +133,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
       const ps = (pRes.data ?? []) as Profile[]
       const me = ps.find((p) => p.id === userId) ?? null
-      setProfiles(ps)
+      setAllProfiles(ps)
       setProfile(me)
       const s = (sRes.data ?? [])[0] as Settings | undefined
       setSettings(s ?? { ...DEFAULT_SETTINGS, family_id: me?.family_id ?? '' })
@@ -140,7 +149,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!userId) {
       setProfile(null)
-      setProfiles([])
+      setAllProfiles([])
       setTasks([])
       setActivities([])
       setAchievements([])
@@ -208,7 +217,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   // ---- Helfer -----------------------------------------------------------
   const isAdmin = profile?.role === 'admin'
 
-  const profileById = useCallback((id: string | null | undefined) => profiles.find((p) => p.id === id), [profiles])
+  const profileById = useCallback((id: string | null | undefined) => allProfiles.find((p) => p.id === id), [allProfiles])
 
   const logActivity = useCallback(
     async (task_id: string | null, action: string, task_title: string) => {
@@ -345,7 +354,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const { task, error } = await patchTask(id, { status: 'done' })
       if (error) return error
       if (task) {
-        toast('Geschafft! 🎉')
+        toast('Geschafft! 🎉', 'success', {
+          label: 'Rückgängig',
+          onClick: () => {
+            void reopenTaskRef.current(id)
+          },
+        })
         await logActivity(task.id, 'done', task.title)
       }
       return null
@@ -355,7 +369,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const reopenTask = useCallback(
     async (id: string) => {
-      const { task, error } = await patchTask(id, { status: 'open' })
+      const old = tasks.find((t) => t.id === id)
+      const status = old && !old.is_pool && old.assignee_ids.length > 0 && old.completed_by && old.assignee_ids.includes(old.completed_by) && profile?.role !== 'admin' ? 'claimed' : 'open'
+      const { task, error } = await patchTask(id, { status })
       if (error) return error
       if (task) {
         toast('Wieder geöffnet', 'info')
@@ -363,8 +379,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       }
       return null
     },
-    [patchTask, logActivity, toast],
+    [tasks, profile, patchTask, logActivity, toast],
   )
+  const reopenTaskRef = useRef(reopenTask)
+  reopenTaskRef.current = reopenTask
 
   const claimTask = useCallback(
     async (id: string) => {
@@ -410,22 +428,23 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       if (error) return errMsg(error)
       const p = data as Profile
       setProfile(p)
-      setProfiles((all) => all.map((x) => (x.id === p.id ? p : x)))
+      setAllProfiles((all) => all.map((x) => (x.id === p.id ? p : x)))
       return null
     },
     [profile],
   )
 
   const updateMemberProfile = useCallback(
-    async (id: string, patch: { display_name?: string; avatar?: string; role?: Role }) => {
+    async (id: string, patch: { display_name?: string; avatar?: string; role?: Role; active?: boolean }) => {
       if (!profile) return 'Nicht angemeldet.'
       if (profile.role !== 'admin') return 'Nur Eltern können andere Profile bearbeiten.'
       if (id === profile.id && patch.role && patch.role !== 'admin') return 'Du kannst dir selbst nicht die Admin-Rolle entziehen.'
+      if (id === profile.id && patch.active === false) return 'Du kannst dich nicht selbst deaktivieren.'
       const { data, error } = await supabase.from('profiles').update(patch).eq('id', id).select('*').single()
       if (error) return errMsg(error)
       const p = data as Profile
       if (p.id === profile.id) setProfile(p)
-      setProfiles((all) => all.map((x) => (x.id === p.id ? p : x)))
+      setAllProfiles((all) => all.map((x) => (x.id === p.id ? p : x)))
       return null
     },
     [profile],
@@ -461,6 +480,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     authLoading,
     profile,
     profiles,
+    allProfiles,
     settings,
     tasks,
     activities,
