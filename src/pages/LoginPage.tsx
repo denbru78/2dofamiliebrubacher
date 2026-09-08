@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useStore } from '../lib/store'
+import { getRemember, setRemember } from '../lib/supabase'
 
 export function LoginPage() {
   const { signIn } = useStore()
@@ -7,6 +8,7 @@ export function LoginPage() {
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [remember, setRememberState] = useState(getRemember())
 
   const submit = async () => {
     if (busy) return
@@ -16,6 +18,7 @@ export function LoginPage() {
     }
     setBusy(true)
     setError(null)
+    setRemember(remember)
     const err = await signIn(email, password)
     setBusy(false)
     if (err) setError(err)
@@ -57,6 +60,15 @@ export function LoginPage() {
             }}
           />
         </div>
+        <button className="remember-row" onClick={() => setRememberState(!remember)} role="checkbox" aria-checked={remember}>
+          <span className={`checkbox ${remember ? 'on' : ''}`} aria-hidden="true">
+            {remember ? '✓' : ''}
+          </span>
+          <span>
+            <span style={{ fontWeight: 600 }}>Angemeldet bleiben</span>
+            <span className="muted small" style={{ display: 'block' }}>Auf diesem Gerät nicht mehr nachfragen</span>
+          </span>
+        </button>
         {error && <div className="error">{error}</div>}
         <button className="btn block" onClick={submit} disabled={busy}>
           {busy ? 'Anmelden…' : 'Anmelden'}

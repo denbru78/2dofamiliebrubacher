@@ -1270,3 +1270,33 @@ details.more[open] summary::before {
   margin-right: -136px;
   padding-right: 16px;
 }
+
+/* ---------- Login: Angemeldet bleiben ---------- */
+.remember-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  padding: 8px 0 14px;
+  min-height: 48px;
+}
+
+.checkbox {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  border: 2px solid #c9cfd6;
+  background: var(--surface);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 800;
+  flex: 0 0 auto;
+}
+
+.checkbox.on {
+  background: var(--sage);
+  border-color: var(--sage);
+}
