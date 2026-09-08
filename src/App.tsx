@@ -3,6 +3,7 @@ import { useStore } from './lib/store'
 import type { Task } from './lib/types'
 import { BottomNav } from './components/BottomNav'
 import { Toasts } from './components/Toasts'
+import { UpdateBanner } from './components/UpdateBanner'
 import { TaskForm } from './components/TaskForm'
 import { TaskDetail } from './components/TaskDetail'
 import { IconPlus } from './components/Icons'
@@ -139,6 +140,7 @@ export default function App() {
         </button>
       )}
       <BottomNav view={view} onChange={(v) => go(v)} />
+      <UpdateBanner />
       {detailTask && !formOpen && <TaskDetail task={detailTask} onClose={closeTask} onEdit={openEdit} />}
       {formOpen && <TaskForm task={editing} onClose={closeForm} onGoToTasks={() => go('tasks', 'all')} />}
       <Toasts />

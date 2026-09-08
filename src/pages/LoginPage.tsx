@@ -73,7 +73,7 @@ export function LoginPage() {
     <div className="login">
       <div className="login-card">
         <img className="login-logo" src="/icons/icon-192.png" alt="" />
-        <h1 className="center" style={{ fontSize: 26 }}>Familien-Liste</h1>
+        <h1 className="center" style={{ fontSize: 26 }}>Unser Plan</h1>
         <p className="subtitle center" style={{ marginBottom: 18 }}>
           {title}
         </p>

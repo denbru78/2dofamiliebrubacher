@@ -83,7 +83,7 @@ export function SettingsPage() {
     const text = `Unsere Familien-Liste: ${window.location.origin}\nAnmelden mit deiner Familien-E-Mail (z. B. name@familie.local) und dem Passwort von Mama oder Papa. Auf dem Handy am besten „Zum Home-Bildschirm“ hinzufügen.`
     try {
       if (navigator.share) {
-        await navigator.share({ title: 'Familien-Liste', text })
+        await navigator.share({ title: 'Unser Plan', text })
       } else {
         await navigator.clipboard.writeText(text)
         toast('Einladungstext kopiert', 'info')

@@ -3,21 +3,37 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1" />
-    <title>Familien-Liste</title>
-    <meta name="description" content="Die gemeinsame To-do-Liste unserer Familie" />
-    <meta name="theme-color" content="#6E9B7C" />
+    <title>Unser Plan</title>
+    <meta name="description" content="Unser Plan – die gemeinsame To-do-Liste unserer Familie" />
+    <meta name="application-name" content="Unser Plan" />
+    <meta name="theme-color" content="#6e9b7c" />
+    <meta name="color-scheme" content="light" />
     <link rel="manifest" href="/manifest.webmanifest" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet" />
-    <link rel="icon" href="/icons/favicon.png" type="image/png" />
-    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png" />
+    <link rel="apple-touch-startup-image" href="/icons/splash-1170x2532.png" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="apple-mobile-web-app-title" content="To-dos" />
+    <meta name="apple-mobile-web-app-title" content="Unser Plan" />
+    <meta name="format-detection" content="telephone=no" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet" />
+    <style>
+      /* Einfache Startansicht, bis die App geladen ist */
+      html { background: #faf7f2; }
+      #splash { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; background: #faf7f2; color: #1f2430; font-family: Manrope, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; z-index: 9999; }
+      #splash img { width: 92px; height: 92px; border-radius: 24px; }
+      #splash span { font-weight: 800; font-size: 22px; letter-spacing: -0.02em; }
+    </style>
   </head>
   <body>
+    <div id="splash" aria-hidden="true">
+      <img src="/icons/icon-192.png" alt="" />
+      <span>Unser Plan</span>
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

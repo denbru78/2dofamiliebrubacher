@@ -37,7 +37,7 @@ export function NotificationsSheet({ onClose }: Props) {
 
   const digestText = () => {
     const lines = todayOrOverdue.map((t) => `• ${t.title}${dueState(t.due_kind, t.due_date) === 'overdue' ? ' (überfällig)' : ''}`)
-    return `Familien-Liste – heute ${todayOrOverdue.length === 1 ? 'ist 1 Aufgabe' : `sind ${todayOrOverdue.length} Aufgaben`} offen:\n${lines.join('\n')}\n${window.location.origin}`
+    return `Unser Plan – heute ${todayOrOverdue.length === 1 ? 'ist 1 Aufgabe' : `sind ${todayOrOverdue.length} Aufgaben`} offen:\n${lines.join('\n')}\n${window.location.origin}`
   }
 
   return (

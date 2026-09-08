@@ -30,6 +30,7 @@
   --radius-sm: 14px;
   --nav-h: 64px;
   --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-t: env(safe-area-inset-top, 0px);
   --font: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 }
 
@@ -103,7 +104,7 @@ a {
 }
 
 .page {
-  padding-top: max(16px, env(safe-area-inset-top, 0px));
+  padding-top: calc(12px + var(--safe-t));
 }
 
 .page-head {
@@ -1937,4 +1938,71 @@ h2 {
 
 .option-card:active {
   transform: scale(0.99);
+}
+
+/* ---------- PWA: Update-Hinweis, Safe Areas ---------- */
+.update-banner {
+  position: fixed;
+  left: 16px;
+  right: 16px;
+  top: calc(12px + var(--safe-t));
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--ink);
+  color: #fff;
+  border-radius: 16px;
+  padding: 10px 12px 10px 14px;
+  box-shadow: 0 8px 22px rgba(31, 36, 48, 0.28);
+  font-weight: 600;
+  max-width: 560px;
+  margin: 0 auto;
+}
+
+.update-banner .btn {
+  background: var(--sage);
+}
+
+.sheet {
+  padding-top: calc(12px + var(--safe-t));
+}
+
+@media (min-width: 640px) {
+  .sheet {
+    padding-top: 12px;
+  }
+}
+
+.login {
+  padding-top: calc(24px + var(--safe-t));
+  padding-bottom: calc(24px + var(--safe-b));
+}
+
+/* Sehr schmale Geräte (320 px) */
+@media (max-width: 340px) {
+  h1 {
+    font-size: 26px;
+  }
+  .app {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+  .family-member {
+    width: 70px;
+  }
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .fab {
+    right: 12px;
+    padding: 12px 14px;
+  }
+}
+
+/* Standalone-Modus (installierte App): kein Überscrollen der Shell */
+@media (display-mode: standalone) {
+  body {
+    overscroll-behavior-y: contain;
+  }
 }

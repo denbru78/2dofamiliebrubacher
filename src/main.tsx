@@ -2,6 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
 import { StoreProvider } from './lib/store'
+import { setupServiceWorker } from './lib/sw'
 import './styles.css'
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
@@ -12,10 +13,14 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   </React.StrictMode>,
 )
 
-if ('serviceWorker' in navigator && import.meta.env.PROD) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(() => {
-      /* Service Worker ist optional */
-    })
-  })
-}
+// Startansicht ausblenden, sobald React gerendert hat
+window.requestAnimationFrame(() => {
+  const s = document.getElementById('splash')
+  if (s) {
+    s.style.transition = 'opacity 0.2s ease'
+    s.style.opacity = '0'
+    window.setTimeout(() => s.remove(), 220)
+  }
+})
+
+if (import.meta.env.PROD) setupServiceWorker()
