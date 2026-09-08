@@ -749,12 +749,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [profile],
   )
 
-  const unreadCount = useMemo(() => (profile ? notifications.filter((n) => !n.read_by.includes(profile.id)).length : 0), [notifications, profile])
+  // Die Glocke zählt nur Mitteilungen für mich oder für die ganze Familie – nie Zuweisungen an andere
+  const unreadCount = useMemo(
+    () => (profile ? notifications.filter((n) => !n.read_by.includes(profile.id) && (n.profile_id === null || n.profile_id === profile.id)).length : 0),
+    [notifications, profile],
+  )
 
   const markNotificationsRead = useCallback(
     async (ids?: string[]) => {
       if (!profile) return
-      const targets = notifications.filter((n) => !n.read_by.includes(profile.id) && (!ids || ids.includes(n.id)))
+      const targets = notifications.filter((n) => !n.read_by.includes(profile.id) && (n.profile_id === null || n.profile_id === profile.id) && (!ids || ids.includes(n.id)))
       if (targets.length === 0) return
       setNotifications((all) => all.map((n) => (targets.some((t) => t.id === n.id) ? { ...n, read_by: [...n.read_by, profile.id] } : n)))
       await Promise.all(targets.map((n) => supabase.from('notifications').update({ read_by: [...n.read_by, profile.id] }).eq('id', n.id)))
