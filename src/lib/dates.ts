@@ -1,4 +1,4 @@
-import type { DueKind } from './types'
+import type { DueKind, Recurrence } from './types'
 
 function pad(n: number): string {
   return n < 10 ? `0${n}` : String(n)
@@ -109,4 +109,31 @@ export function dueLabel(dueKind: DueKind, dueDate: string | null): string {
 export function sameDay(a: string | null, b: string | null): boolean {
   if (!a || !b) return false
   return toISODate(new Date(a)) === toISODate(new Date(b))
+}
+
+/** Nächster Termin einer wiederkehrenden Aufgabe (wie im Datenbank-Trigger). */
+export function nextDueDate(dueDate: string | null, rec: Recurrence, interval: number): string {
+  const n = Math.max(1, interval || 1)
+  const today = new Date()
+  today.setHours(12, 0, 0, 0)
+  let base = dueDate ? new Date(`${dueDate}T12:00:00`) : today
+  if (base < today) base = today
+  const d = new Date(base)
+  switch (rec) {
+    case 'daily':
+      d.setDate(d.getDate() + n)
+      break
+    case 'weekly':
+      d.setDate(d.getDate() + 7 * n)
+      break
+    case 'monthly':
+      d.setMonth(d.getMonth() + n)
+      break
+    case 'yearly':
+      d.setFullYear(d.getFullYear() + n)
+      break
+    default:
+      break
+  }
+  return toISODate(d)
 }

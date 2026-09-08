@@ -2,7 +2,7 @@ export type Role = 'admin' | 'member'
 export type Priority = 'none' | 'normal' | 'important' | 'urgent'
 export type Status = 'open' | 'claimed' | 'done' | 'archived'
 export type DueKind = 'none' | 'today' | 'tomorrow' | 'week' | 'weekend' | 'someday' | 'date'
-export type Recurrence = 'none' | 'daily' | 'weekly' | 'monthly'
+export type Recurrence = 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly'
 
 export interface Profile {
   id: string
@@ -34,6 +34,7 @@ export interface Task {
   is_pool: boolean
   status: Status
   recurrence: Recurrence
+  recurrence_interval: number
   created_by: string | null
   created_at: string
   updated_at: string
@@ -70,4 +71,5 @@ export interface TaskInput {
   due_date: string
   assignee_ids: string[]
   recurrence: Recurrence
+  recurrence_interval: number
 }

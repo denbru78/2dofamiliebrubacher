@@ -4,7 +4,7 @@ import type { Session } from '@supabase/supabase-js'
 import { supabase } from './supabase'
 import type { Achievement, Activity, Profile, Role, Settings, Task, TaskInput } from './types'
 import { computeNewUnlocks, achievementDef } from './achievements'
-import { resolveDueDate, startOfWeek } from './dates'
+import { nextDueDate, resolveDueDate, startOfWeek } from './dates'
 
 export interface ToastMsg {
   id: number
@@ -31,7 +31,7 @@ interface StoreValue {
   signOut: () => Promise<void>
   createTask: (input: TaskInput) => Promise<string | null>
   updateTask: (id: string, input: TaskInput) => Promise<string | null>
-  deleteTask: (id: string) => Promise<string | null>
+  deleteTask: (id: string, mode?: 'single' | 'series') => Promise<string | null>
   completeTask: (id: string) => Promise<string | null>
   reopenTask: (id: string) => Promise<string | null>
   claimTask: (id: string) => Promise<string | null>
@@ -268,6 +268,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         assignee_ids: assignees,
         is_pool: assignees.length === 0,
         recurrence: input.recurrence,
+        recurrence_interval: input.recurrence === 'none' ? 1 : Math.max(1, input.recurrence_interval || 1),
       }
     },
     [profiles],
@@ -305,15 +306,38 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   )
 
   const deleteTask = useCallback(
-    async (id: string) => {
+    async (id: string, mode: 'single' | 'series' = 'series') => {
+      if (!profile) return 'Nicht angemeldet.'
       const old = tasks.find((t) => t.id === id)
+      // „Nur diese Aufgabe löschen“ bei Wiederholung: nächsten Termin trotzdem anlegen
+      if (mode === 'single' && old && old.recurrence !== 'none' && (old.status === 'open' || old.status === 'claimed')) {
+        const next = {
+          family_id: old.family_id,
+          title: old.title,
+          description: old.description,
+          link: old.link,
+          cost: old.cost,
+          category: old.category,
+          priority: old.priority,
+          due_kind: 'date' as const,
+          due_date: nextDueDate(old.due_date, old.recurrence, old.recurrence_interval),
+          assignee_ids: old.assignee_ids,
+          is_pool: old.is_pool,
+          status: 'open' as const,
+          recurrence: old.recurrence,
+          recurrence_interval: old.recurrence_interval,
+        }
+        const { data, error: insErr } = await supabase.from('tasks').insert(next).select('*').single()
+        if (insErr) return errMsg(insErr)
+        if (data) applyTask(data as Task)
+      }
       const { error } = await supabase.from('tasks').delete().eq('id', id)
       if (error) return errMsg(error)
       setTasks((all) => all.filter((t) => t.id !== id))
       await logActivity(null, 'deleted', old?.title ?? '')
       return null
     },
-    [tasks, logActivity],
+    [profile, tasks, logActivity, applyTask],
   )
 
   const completeTask = useCallback(

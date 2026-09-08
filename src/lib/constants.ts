@@ -1,14 +1,14 @@
 import type { DueKind, Priority, Recurrence } from './types'
 
-export const CATEGORIES: { name: string; emoji: string }[] = [
-  { name: 'Haus & Haushalt', emoji: '🏠' },
-  { name: 'Garten', emoji: '🌿' },
-  { name: 'Auto & Mobilität', emoji: '🚗' },
-  { name: 'Besorgen & Kaufen', emoji: '🛒' },
-  { name: 'Prüfen & Recherchieren', emoji: '🔍' },
-  { name: 'Familie & Kinder', emoji: '👨‍👩‍👧‍👦' },
-  { name: 'Organisation', emoji: '📋' },
-  { name: 'Sonstiges', emoji: '✨' },
+export const CATEGORIES: { name: string; short: string; emoji: string }[] = [
+  { name: 'Haus & Haushalt', short: 'Haus', emoji: '🏠' },
+  { name: 'Garten', short: 'Garten', emoji: '🌿' },
+  { name: 'Auto & Mobilität', short: 'Auto', emoji: '🚗' },
+  { name: 'Besorgen & Kaufen', short: 'Kaufen', emoji: '🛒' },
+  { name: 'Prüfen & Recherchieren', short: 'Prüfen', emoji: '🔍' },
+  { name: 'Familie & Kinder', short: 'Familie', emoji: '👨‍👩‍👧‍👦' },
+  { name: 'Organisation', short: 'Organisation', emoji: '📋' },
+  { name: 'Sonstiges', short: 'Sonstiges', emoji: '✨' },
 ]
 
 export function categoryEmoji(name: string): string {
@@ -36,12 +36,53 @@ export const DUE_KINDS: { value: DueKind; label: string }[] = [
   { value: 'date', label: 'Datum' },
 ]
 
-export const RECURRENCES: { value: Recurrence; label: string }[] = [
-  { value: 'none', label: 'Keine' },
+export type RecurrenceChoice = 'none' | 'daily' | 'weekly' | 'weeks_n' | 'monthly' | 'months_n' | 'yearly'
+
+export const RECURRENCE_CHOICES: { value: RecurrenceChoice; label: string }[] = [
+  { value: 'none', label: 'Keine Wiederholung' },
   { value: 'daily', label: 'Täglich' },
   { value: 'weekly', label: 'Wöchentlich' },
+  { value: 'weeks_n', label: 'Alle X Wochen' },
   { value: 'monthly', label: 'Monatlich' },
+  { value: 'months_n', label: 'Alle X Monate' },
+  { value: 'yearly', label: 'Jährlich' },
 ]
+
+export function toRecurrenceChoice(rec: Recurrence, interval: number): RecurrenceChoice {
+  if (rec === 'weekly') return interval > 1 ? 'weeks_n' : 'weekly'
+  if (rec === 'monthly') return interval > 1 ? 'months_n' : 'monthly'
+  return rec
+}
+
+export function fromRecurrenceChoice(choice: RecurrenceChoice, n: number): { recurrence: Recurrence; recurrence_interval: number } {
+  const safe = Math.max(1, Math.min(52, Math.round(n) || 1))
+  switch (choice) {
+    case 'weeks_n':
+      return { recurrence: 'weekly', recurrence_interval: Math.max(2, safe) }
+    case 'months_n':
+      return { recurrence: 'monthly', recurrence_interval: Math.max(2, safe) }
+    case 'none':
+      return { recurrence: 'none', recurrence_interval: 1 }
+    default:
+      return { recurrence: choice, recurrence_interval: 1 }
+  }
+}
+
+export function recurrenceLabel(rec: Recurrence, interval: number): string {
+  const n = Math.max(1, interval || 1)
+  switch (rec) {
+    case 'daily':
+      return n > 1 ? `alle ${n} Tage` : 'täglich'
+    case 'weekly':
+      return n > 1 ? `alle ${n} Wochen` : 'wöchentlich'
+    case 'monthly':
+      return n > 1 ? `alle ${n} Monate` : 'monatlich'
+    case 'yearly':
+      return n > 1 ? `alle ${n} Jahre` : 'jährlich'
+    default:
+      return ''
+  }
+}
 
 export const EMOJI_AVATARS = ['🙂', '😊', '😎', '🐻', '🦊', '🐱', '🐶', '🦄', '🌟', '🍀', '🚀', '⚽', '🎨', '🎸', '🌸', '🐢']
 

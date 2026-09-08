@@ -1,6 +1,6 @@
 import type { Task } from '../lib/types'
 import { useStore } from '../lib/store'
-import { categoryEmoji, priorityLabel } from '../lib/constants'
+import { categoryEmoji, priorityLabel, recurrenceLabel } from '../lib/constants'
 import { dueLabel, dueState, formatDateTime } from '../lib/dates'
 import { Avatar } from './Avatar'
 import { IconCheck, IconEdit } from './Icons'
@@ -69,7 +69,7 @@ export function TaskCard({ task, onEdit, compact = false, showHistory = false, s
           {settings.priorities_enabled && task.priority !== 'none' && (
             <span className={`tag ${task.priority}`}>{priorityLabel(task.priority)}</span>
           )}
-          {!compact && task.recurrence !== 'none' && <span className="tag">↻ {task.recurrence === 'daily' ? 'täglich' : task.recurrence === 'weekly' ? 'wöchentlich' : 'monatlich'}</span>}
+          {!compact && task.recurrence !== 'none' && <span className="tag">↻ {recurrenceLabel(task.recurrence, task.recurrence_interval)}</span>}
           {!compact && task.cost !== null && <span className="tag">{task.cost.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</span>}
           {!compact && task.link && (
             <a className="tag" href={task.link} target="_blank" rel="noreferrer">

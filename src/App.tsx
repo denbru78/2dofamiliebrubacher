@@ -104,7 +104,7 @@ export default function App() {
         </button>
       )}
       <BottomNav view={view} onChange={(v) => go(v)} />
-      {formOpen && <TaskForm task={editing} onClose={closeForm} />}
+      {formOpen && <TaskForm task={editing} onClose={closeForm} onGoToTasks={() => go('tasks', 'all')} />}
       <Toasts />
     </div>
   )

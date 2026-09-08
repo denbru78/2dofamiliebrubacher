@@ -45,13 +45,19 @@ create table if not exists public.tasks (
   assignee_ids  uuid[] not null default '{}',
   is_pool       boolean not null default true,
   status        text not null default 'open' check (status in ('open','claimed','done','archived')),
-  recurrence    text not null default 'none' check (recurrence in ('none','daily','weekly','monthly')),
+  recurrence    text not null default 'none' check (recurrence in ('none','daily','weekly','monthly','yearly')),
+  recurrence_interval integer not null default 1 check (recurrence_interval between 1 and 52),
   created_by    uuid references public.profiles(id) on delete set null,
   created_at    timestamptz not null default now(),
   updated_at    timestamptz not null default now(),
   completed_at  timestamptz,
   completed_by  uuid references public.profiles(id) on delete set null
 );
+
+-- Nachträgliche Erweiterungen (falls Tabelle schon existierte)
+alter table public.tasks add column if not exists recurrence_interval integer not null default 1 check (recurrence_interval between 1 and 52);
+alter table public.tasks drop constraint if exists tasks_recurrence_check;
+alter table public.tasks add constraint tasks_recurrence_check check (recurrence in ('none','daily','weekly','monthly','yearly'));
 
 create table if not exists public.task_activity (
   id          bigserial primary key,
@@ -241,6 +247,7 @@ begin
        or new.due_kind is distinct from old.due_kind
        or new.due_date is distinct from old.due_date
        or new.recurrence is distinct from old.recurrence
+       or new.recurrence_interval is distinct from old.recurrence_interval
        or new.created_by is distinct from old.created_by
        or new.created_at is distinct from old.created_at then
       raise exception 'Mitglieder dürfen Aufgaben nicht bearbeiten';
@@ -275,20 +282,22 @@ as $$
 declare
   base date;
   next_date date;
+  n integer := greatest(1, coalesce(new.recurrence_interval, 1));
 begin
   if new.status = 'done' and old.status <> 'done' and new.recurrence <> 'none' then
     base := coalesce(new.due_date, current_date);
     if base < current_date then base := current_date; end if;
     next_date := case new.recurrence
-                   when 'daily'   then base + interval '1 day'
-                   when 'weekly'  then base + interval '7 days'
-                   when 'monthly' then base + interval '1 month'
+                   when 'daily'   then base + (n || ' days')::interval
+                   when 'weekly'  then base + (n * 7 || ' days')::interval
+                   when 'monthly' then base + (n || ' months')::interval
+                   when 'yearly'  then base + (n || ' years')::interval
                  end;
     perform set_config('familie.system_insert', 'on', true);
     insert into public.tasks (family_id, title, description, link, cost, category, priority,
-                              due_kind, due_date, assignee_ids, is_pool, status, recurrence, created_by)
+                              due_kind, due_date, assignee_ids, is_pool, status, recurrence, recurrence_interval, created_by)
     values (new.family_id, new.title, new.description, new.link, new.cost, new.category, new.priority,
-            'date', next_date, new.assignee_ids, new.is_pool, 'open', new.recurrence, new.created_by);
+            'date', next_date, new.assignee_ids, new.is_pool, 'open', new.recurrence, n, new.created_by);
     perform set_config('familie.system_insert', 'off', true);
   end if;
   return new;

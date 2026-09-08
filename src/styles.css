@@ -1300,3 +1300,67 @@ details.more[open] summary::before {
   background: var(--sage);
   border-color: var(--sage);
 }
+
+/* ---------- Neue Aufgabe V1 ---------- */
+.quick {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.quick .input {
+  flex: 1 1 auto;
+  min-width: 0;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  border-color: transparent;
+}
+
+.quick .btn {
+  width: 48px;
+  padding: 0;
+  flex: 0 0 auto;
+}
+
+.more-box {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.delete-box {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.delete-choice {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.saved-state {
+  text-align: center;
+  padding: 16px 4px 8px;
+}
+
+.saved-check {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--sage);
+  color: #fff;
+  font-size: 34px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 12px;
+  animation: pop 0.25s ease;
+}

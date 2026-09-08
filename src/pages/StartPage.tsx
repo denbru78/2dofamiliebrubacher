@@ -6,6 +6,7 @@ import { dueState } from '../lib/dates'
 import { achievementDef } from '../lib/achievements'
 import { Avatar } from '../components/Avatar'
 import { HeroIllustration } from '../components/HeroIllustration'
+import { QuickCapture } from '../components/QuickCapture'
 import { TaskCard } from '../components/TaskCard'
 import { IconChevron, IconPlus } from '../components/Icons'
 
@@ -90,6 +91,8 @@ export function StartPage({ go, onNew, onEdit }: Props) {
           )}
         </div>
       </div>
+
+      {isAdmin && <QuickCapture />}
 
       <div className="card">
         <div className="card-head">
