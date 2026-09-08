@@ -9,6 +9,7 @@ import { AppIcon } from './AppIcon'
 import { reminderLabel } from '../lib/reminders'
 import { openWhatsApp } from '../lib/whatsapp'
 import { TaskHistory } from './TaskHistory'
+import { ConfirmDialog } from './ConfirmDialog'
 
 interface Props {
   task: Task
@@ -36,13 +37,21 @@ export function TaskDetail({ task, onClose, onEdit }: Props) {
   const completer = profileById(task.completed_by)
   const due = dueLabel(task.due_kind, task.due_date)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [confirmRelease, setConfirmRelease] = useState(false)
+  const [busy, setBusy] = useState<string | null>(null)
   const whatsappText = (who: string | null) =>
     `${who ? `Hallo ${who}, ` : ''}kurze Erinnerung aus unserer Familien-Liste: „${task.title}“${due ? ` – ${due}` : ''}${task.is_pool ? ' (liegt noch im Familien-Pool)' : ''}. ${window.location.origin}`
 
-  const run = async (fn: () => Promise<string | null>, close = true) => {
-    const err = await fn()
-    if (err) toast(err, 'error')
-    else if (close) onClose()
+  const run = async (fn: () => Promise<string | null>, close = true, label = 'x') => {
+    if (busy) return
+    setBusy(label)
+    try {
+      const err = await fn()
+      if (err) toast(err, 'error')
+      else if (close) onClose()
+    } finally {
+      setBusy(null)
+    }
   }
 
   return (
@@ -156,13 +165,13 @@ export function TaskDetail({ task, onClose, onEdit }: Props) {
 
         <div className="detail-actions" style={{ marginTop: 16 }}>
           {canComplete && (
-            <button className="btn block" onClick={() => run(() => completeTask(task.id))}>
-              Erledigen
+            <button className="btn block" onClick={() => run(() => completeTask(task.id), true, 'done')} disabled={!!busy}>
+              {busy === 'done' ? 'Wird erledigt…' : 'Erledigen'}
             </button>
           )}
           {canClaim && !isMine && (
-            <button className="btn block" onClick={() => run(() => claimTask(task.id))}>
-              Ich übernehme
+            <button className="btn block" onClick={() => run(() => claimTask(task.id), true, 'claim')} disabled={!!busy}>
+              {busy === 'claim' ? 'Übernehmen…' : 'Ich übernehme'}
             </button>
           )}
           {isDone && (isAdmin || canUndo) && (
@@ -195,31 +204,36 @@ export function TaskDetail({ task, onClose, onEdit }: Props) {
                 </button>
               )}
               {!task.is_pool && !isDone && (
-                <button className="btn sm secondary" onClick={() => run(() => releaseTask(task.id))}>
+                <button className="btn sm secondary" onClick={() => setConfirmRelease(true)} disabled={!!busy}>
                   Zurück in den Pool
                 </button>
               )}
-              {!confirmDelete ? (
-                <button className="btn sm ghost" style={{ marginLeft: 'auto' }} onClick={() => (task.recurrence !== 'none' ? onEdit(task) : setConfirmDelete(true))}>
-                  Löschen
-                </button>
-              ) : (
-                <div className="confirm-box">
-                  <div style={{ fontWeight: 600 }}>„{task.title}“ wirklich löschen?</div>
-                  <div className="task-actions">
-                    <button className="btn sm danger" onClick={() => run(() => deleteTask(task.id))}>
-                      Ja, löschen
-                    </button>
-                    <button className="btn sm secondary" onClick={() => setConfirmDelete(false)}>
-                      Abbrechen
-                    </button>
-                  </div>
-                </div>
-              )}
+              <button className="btn sm ghost" style={{ marginLeft: 'auto' }} onClick={() => (task.recurrence !== 'none' ? onEdit(task) : setConfirmDelete(true))} disabled={!!busy}>
+                Löschen
+              </button>
             </div>
           )}
         </div>
       </div>
+      {confirmDelete && (
+        <ConfirmDialog
+          title="Aufgabe wirklich löschen?"
+          text={`„${task.title}“ wird dauerhaft entfernt.`}
+          confirmLabel="Löschen"
+          danger
+          onConfirm={() => run(() => deleteTask(task.id), true, 'delete')}
+          onCancel={() => setConfirmDelete(false)}
+        />
+      )}
+      {confirmRelease && (
+        <ConfirmDialog
+          title="Aufgabe wieder für alle freigeben?"
+          text="Die Aufgabe geht zurück in den Familien-Pool. Wer mag, kann sie dann übernehmen."
+          confirmLabel="Freigeben"
+          onConfirm={() => run(() => releaseTask(task.id), true, 'release')}
+          onCancel={() => setConfirmRelease(false)}
+        />
+      )}
     </div>
   )
 }

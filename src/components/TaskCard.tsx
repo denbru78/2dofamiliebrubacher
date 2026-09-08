@@ -7,6 +7,8 @@ import { IconCheck, IconEdit } from './Icons'
 import { AppIcon } from './AppIcon'
 import { memberColor } from '../lib/colors'
 import { reminderLabel } from '../lib/reminders'
+import { useState } from 'react'
+import { ConfirmDialog } from './ConfirmDialog'
 
 interface Props {
   task: Task
@@ -28,9 +30,17 @@ export function TaskCard({ task, onEdit, compact = false, showHistory = false, s
   const ds = dueState(task.due_kind, task.due_date)
   const due = dueLabel(task.due_kind, task.due_date)
 
+  const [busy, setBusy] = useState(false)
+  const [confirmRelease, setConfirmRelease] = useState(false)
   const run = async (fn: () => Promise<string | null>) => {
-    const err = await fn()
-    if (err) toast(err, 'error')
+    if (busy) return
+    setBusy(true)
+    try {
+      const err = await fn()
+      if (err) toast(err, 'error')
+    } finally {
+      setBusy(false)
+    }
   }
 
   const onCheck = () => {
@@ -53,7 +63,7 @@ export function TaskCard({ task, onEdit, compact = false, showHistory = false, s
         className={`check ${isDone ? 'done' : ''}`}
         onClick={onCheck}
         aria-label={isDone ? 'Erledigt' : 'Als erledigt markieren'}
-        disabled={isDone && !isAdmin && !canUndo}
+        disabled={busy || (isDone && !isAdmin && !canUndo)}
       >
         {isDone && <IconCheck />}
       </button>
@@ -113,20 +123,20 @@ export function TaskCard({ task, onEdit, compact = false, showHistory = false, s
         )}
         {compact && showClaim && canClaim && (
           <div className="task-actions">
-            <button className="btn sm" onClick={() => run(() => claimTask(task.id))}>
-              Ich übernehme
+            <button className="btn sm" onClick={() => run(() => claimTask(task.id))} disabled={busy}>
+              {busy ? 'Übernehmen…' : 'Ich übernehme'}
             </button>
           </div>
         )}
         {!compact && !isDone && (canClaim || (isAdmin && !task.is_pool)) && (
           <div className="task-actions">
             {canClaim && (
-              <button className="btn sm" onClick={() => run(() => claimTask(task.id))}>
-                Ich übernehme
+              <button className="btn sm" onClick={() => run(() => claimTask(task.id))} disabled={busy}>
+                {busy ? 'Übernehmen…' : 'Ich übernehme'}
               </button>
             )}
             {isAdmin && !task.is_pool && (
-              <button className="btn sm secondary" onClick={() => run(() => releaseTask(task.id))}>
+              <button className="btn sm secondary" onClick={() => setConfirmRelease(true)} disabled={busy}>
                 Zurück in den Pool
               </button>
             )}
@@ -140,6 +150,15 @@ export function TaskCard({ task, onEdit, compact = false, showHistory = false, s
           </div>
         )}
       </div>
+      {confirmRelease && (
+        <ConfirmDialog
+          title="Aufgabe wieder für alle freigeben?"
+          text="Die Aufgabe geht zurück in den Familien-Pool."
+          confirmLabel="Freigeben"
+          onConfirm={() => run(() => releaseTask(task.id))}
+          onCancel={() => setConfirmRelease(false)}
+        />
+      )}
     </div>
   )
 }

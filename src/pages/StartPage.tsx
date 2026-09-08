@@ -148,7 +148,7 @@ export function StartPage({ go, onNew, onEdit }: Props) {
             <div className="empty-icon">
               <AppIcon name="sun" size={30} />
             </div>
-            Nichts Dringendes – genieß den Tag.
+            Hier ist gerade nichts offen.
           </div>
         ) : (
           <div className="task-list">
@@ -172,7 +172,7 @@ export function StartPage({ go, onNew, onEdit }: Props) {
           )}
         </div>
         {mine.length === 0 ? (
-          <div className="empty">Heute nichts Persönliches offen.</div>
+          <div className="empty">Du hast heute schon alles geschafft.</div>
         ) : (
           <div className="task-list">
             {mine.slice(0, 3).map((t) => (
@@ -199,7 +199,7 @@ export function StartPage({ go, onNew, onEdit }: Props) {
             <div className="empty-icon">
               <AppIcon name="basket" size={30} />
             </div>
-            Der Pool ist leer.
+            Im Familien-Pool wartet aktuell keine Aufgabe.
           </div>
         ) : (
           <div className="task-list">

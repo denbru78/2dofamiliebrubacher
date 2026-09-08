@@ -31,7 +31,7 @@ export function PoolPage({ onEdit, onBack }: Props) {
             <div className="empty-icon">
               <AppIcon name="basket" size={30} />
             </div>
-            Gerade ist nichts im Pool.
+            Im Familien-Pool wartet aktuell keine Aufgabe.
           </div>
         ) : (
           <div className="task-list">

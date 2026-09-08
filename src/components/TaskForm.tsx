@@ -14,6 +14,7 @@ import {
 import { Avatar } from './Avatar'
 import { IconX } from './Icons'
 import { AppIcon } from './AppIcon'
+import { ConfirmDialog } from './ConfirmDialog'
 
 interface Props {
   task?: Task | null
@@ -68,6 +69,7 @@ export function TaskForm({ task, onClose, onGoToTasks }: Props) {
   const [moreOpen, setMoreOpen] = useState(!!(task && (task.description || task.link || task.cost !== null || task.recurrence !== 'none')))
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [titleError, setTitleError] = useState<string | null>(null)
   const [deleteStep, setDeleteStep] = useState<0 | 1>(0)
   const [savedTitle, setSavedTitle] = useState<string | null>(null)
   const [askScope, setAskScope] = useState<TaskInput | null>(null)
@@ -116,10 +118,11 @@ export function TaskForm({ task, onClose, onGoToTasks }: Props) {
   const save = async () => {
     if (saving) return
     if (!input.title.trim()) {
-      setError('Bitte einen Titel eingeben.')
+      setTitleError('Bitte gib zuerst eine Aufgabe ein.')
       titleRef.current?.focus()
       return
     }
+    setTitleError(null)
     const data = buildInput()
     // Wiederkehrende Aufgabe bearbeiten: nachfragen, ob nur diese oder die ganze Serie
     const ruleChanged = task && (data.recurrence !== task.recurrence || data.recurrence_interval !== (task.recurrence_interval ?? 1))
@@ -265,7 +268,10 @@ export function TaskForm({ task, onClose, onGoToTasks }: Props) {
             className="input big"
             placeholder="z. B. Gartenhaus aufräumen"
             value={input.title}
-            onChange={(e) => set('title', e.target.value)}
+            onChange={(e) => {
+              set('title', e.target.value)
+              if (titleError && e.target.value.trim()) setTitleError(null)
+            }}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 e.preventDefault()
@@ -274,7 +280,10 @@ export function TaskForm({ task, onClose, onGoToTasks }: Props) {
             }}
             enterKeyHint="done"
             autoComplete="off"
+            aria-invalid={!!titleError}
+            style={titleError ? { borderColor: 'var(--prio-urgent)' } : undefined}
           />
+          {titleError && <div className="field-error">{titleError}</div>}
         </div>
 
         <div className="field">
@@ -425,9 +434,14 @@ export function TaskForm({ task, onClose, onGoToTasks }: Props) {
                 </button>
               </div>
             ) : (
-              <button className="btn sm danger" onClick={() => remove('series')} disabled={saving} style={{ marginLeft: 'auto' }}>
-                Wirklich löschen?
-              </button>
+              <ConfirmDialog
+                title="Aufgabe wirklich löschen?"
+                text={`„${task.title}“ wird dauerhaft entfernt.`}
+                confirmLabel="Löschen"
+                danger
+                onConfirm={() => remove('series')}
+                onCancel={() => setDeleteStep(0)}
+              />
             )}
           </div>
         )}

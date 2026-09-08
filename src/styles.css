@@ -2006,3 +2006,27 @@ h2 {
     overscroll-behavior-y: contain;
   }
 }
+
+/* ---------- Bestätigungen, Feldfehler ---------- */
+.confirm-dialog {
+  background: var(--surface);
+  width: 100%;
+  max-width: 420px;
+  border-radius: var(--radius);
+  padding: 18px 16px 16px;
+  box-shadow: 0 16px 40px rgba(31, 36, 48, 0.2);
+  animation: pop 0.2s ease;
+}
+
+.confirm-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.field-error {
+  color: var(--prio-urgent);
+  font-size: 13px;
+  font-weight: 600;
+  margin-top: 6px;
+}

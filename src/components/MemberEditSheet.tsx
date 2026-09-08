@@ -6,6 +6,7 @@ import { MEMBER_COLORS, memberColorKey } from '../lib/colors'
 import type { MemberColor } from '../lib/colors'
 import { Avatar } from './Avatar'
 import { IconX } from './Icons'
+import { ConfirmDialog } from './ConfirmDialog'
 
 export function AvatarPicker({ value, onPick, name, color }: { value: string; onPick: (a: string) => void; name?: string; color?: string | null }) {
   return (
@@ -45,12 +46,18 @@ export function MemberEditSheet({ member, onClose }: { member: Profile; onClose:
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const isSelf = profile?.id === member.id
+  const [confirmDeactivate, setConfirmDeactivate] = useState(false)
 
   const save = async () => {
     if (!name.trim()) {
       setError('Bitte einen Namen eingeben.')
       return
     }
+    if (member.active !== false && !active && !confirmDeactivate) {
+      setConfirmDeactivate(true)
+      return
+    }
+    setConfirmDeactivate(false)
     setBusy(true)
     setError(null)
     const err = await updateMemberProfile(member.id, { display_name: name.trim(), avatar, role, active, color, phone: phone.trim() || null })
@@ -115,6 +122,16 @@ export function MemberEditSheet({ member, onClose }: { member: Profile; onClose:
           {busy ? 'Speichern…' : 'Speichern'}
         </button>
       </div>
+      {confirmDeactivate && (
+        <ConfirmDialog
+          title="Familienmitglied wirklich deaktivieren?"
+          text="Aufgaben und Historie bleiben erhalten. Das Mitglied kann sich nur nicht mehr anmelden und wird ausgeblendet."
+          confirmLabel="Deaktivieren"
+          danger
+          onConfirm={save}
+          onCancel={() => setConfirmDeactivate(false)}
+        />
+      )}
     </div>
   )
 }

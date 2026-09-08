@@ -78,6 +78,24 @@ export default function App() {
     )
   }
 
+  if (dataError && !profile && !dataLoading) {
+    return (
+      <div className="login">
+        <div className="login-card">
+          <img className="login-logo" src="/icons/icon-192.png" alt="" />
+          <h2 className="center">Das hat nicht geklappt</h2>
+          <p className="muted center" style={{ margin: '4px 0 16px' }}>{dataError}</p>
+          <button className="btn block" onClick={() => reload()}>
+            Erneut versuchen
+          </button>
+          <button className="btn ghost block" onClick={signOut} style={{ marginTop: 8 }}>
+            Abmelden
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   if (dataLoading && !profile) {
     return (
       <div className="loading">
@@ -124,7 +142,14 @@ export default function App() {
 
   return (
     <div className="app">
-      {dataError && <div className="error">{dataError}</div>}
+      {dataError && (
+        <div className="notice" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ flex: '1 1 auto' }}>{dataError}</span>
+          <button className="btn sm secondary" onClick={() => reload()}>
+            Erneut versuchen
+          </button>
+        </div>
+      )}
       {view === 'start' && <StartPage go={go} onNew={openNew} onEdit={openEdit} />}
       {view === 'tasks' && (
         <TasksPage personFilter={personFilter} setPersonFilter={setPersonFilter} urgentOnly={urgentOnly} setUrgentOnly={setUrgentOnly} onEdit={openEdit} />

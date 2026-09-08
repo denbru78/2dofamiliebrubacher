@@ -238,7 +238,7 @@ export function TasksPage({ personFilter, setPersonFilter, urgentOnly, setUrgent
                 ? `Nichts gefunden für „${f.query}“.`
                 : doneView
                   ? 'Noch nichts Erledigtes mit diesen Filtern.'
-                  : 'Keine Aufgaben mit diesen Filtern.'}
+                  : 'Hier ist gerade nichts offen.'}
           </div>
         ) : (
           <div className="task-list">

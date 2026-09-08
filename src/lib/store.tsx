@@ -84,12 +84,18 @@ const StoreContext = createContext<StoreValue | null>(null)
 
 const DEFAULT_SETTINGS: Settings = { family_id: '', priorities_enabled: true, weekly_goal: 10, kids_can_claim_pool: true, achievements_enabled: true, reminders_enabled: true }
 
+const GENERIC = 'Etwas hat nicht geklappt. Bitte versuche es erneut.'
+
+/** Übersetzt technische Fehler in verständliche Texte – nie Rohtext, Codes oder Stacktraces */
 function errMsg(e: unknown): string {
-  if (!e) return 'Unbekannter Fehler'
+  if (!e) return GENERIC
   if (typeof e === 'string') return e
   if (typeof e === 'object' && e && 'message' in e) {
     const m = String((e as { message?: unknown }).message ?? '')
-    if (m.includes('Keine Berechtigung') || m.includes('Nur Eltern') || m.includes('Mitglieder dürfen')) return 'Dafür fehlt dir die Berechtigung.'
+    if (m.includes('Nur Eltern') || m.includes('Mitglieder dürfen') || m.includes('nur von Eltern')) return 'Diese Aktion ist nur für Eltern möglich.'
+    if (m.includes('Keine Berechtigung') || m.includes('Rolle und Status') || m.includes('Eigene Rolle')) return 'Du hast für diese Aktion keine Berechtigung.'
+    if (m.includes('Sonstiges') && m.includes('gelöscht')) return 'Die Kategorie „Sonstiges“ kann nicht gelöscht werden.'
+    if (m.includes('Pool-Aufgaben dürfen')) return 'Pool-Aufgaben verteilen gerade nur Mama oder Papa.'
     if (m.includes('Invalid login credentials')) return 'E-Mail oder Passwort ist falsch.'
     if (m.includes('Email not confirmed')) return 'Die E-Mail-Adresse ist noch nicht bestätigt. Bitte den Link in der Bestätigungs-Mail öffnen.'
     if (m.includes('already registered') || m.includes('already been registered')) return 'Diese E-Mail-Adresse ist schon registriert. Bitte anmelden oder „Passwort vergessen“ nutzen.'
@@ -100,10 +106,15 @@ function errMsg(e: unknown): string {
     if (m.includes('permission denied') || m.includes('violates row-level security')) return 'Dafür fehlt dir die Berechtigung.'
     if (m.includes('New password should be different')) return 'Das neue Passwort muss sich vom alten unterscheiden.'
     if (m.includes('invalid') && m.includes('email')) return 'Bitte eine gültige E-Mail-Adresse eingeben.'
-    if (m.includes('Failed to fetch') || m.includes('NetworkError')) return 'Keine Verbindung. Bitte Internet prüfen.'
-    return m
+    if (m.includes('Failed to fetch') || m.includes('NetworkError') || m.includes('Load failed') || m.includes('network')) return 'Keine Verbindung. Bitte Internetverbindung prüfen.'
+    if (m.includes('JWT') || m.includes('jwt') || m.includes('refresh_token') || m.includes('session')) return 'Deine Anmeldung ist abgelaufen. Bitte neu anmelden.'
+    if (m.includes('duplicate key') || m.includes('already exists')) return 'Das gibt es schon.'
+    if (m.includes('column') || m.includes('relation') || m.includes('function') || m.includes('syntax') || m.includes('PGRST') || /^[A-Z0-9]{5}:/.test(m)) return GENERIC
+    // Verständliche deutsche Meldungen aus unseren Datenbankregeln dürfen durch
+    if (/^[A-ZÄÖÜ][^{}<>]{4,120}$/.test(m) && /[äöüß]|Bitte|Aufgabe|Familie|Einladung|Konto|Name/.test(m)) return m
+    return GENERIC
   }
-  return 'Unbekannter Fehler'
+  return GENERIC
 }
 
 export function StoreProvider({ children }: { children: ReactNode }) {
@@ -138,12 +149,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const unlockingRef = useRef(false)
   const attemptedRef = useRef<Set<string>>(new Set())
   const archivedRef = useRef(false)
+  const creatingRef = useRef<{ title: string; at: number } | null>(null)
 
   const toast = useCallback((text: string, kind: ToastMsg['kind'] = 'success', action?: ToastAction) => {
     const id = ++toastId.current
     const wrapped = action ? { label: action.label, onClick: () => { action.onClick(); setToasts((t) => t.filter((x) => x.id !== id)) } } : undefined
     setToasts((t) => [...t, { id, text, kind, action: wrapped }])
-    window.setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), action ? 6000 : 2600)
+    window.setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), action ? 8000 : 2600)
   }, [])
 
   // ---- Auth -------------------------------------------------------------
@@ -459,10 +471,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const createTask = useCallback(
     async (input: TaskInput) => {
       if (!profile) return 'Nicht angemeldet.'
-      if (!input.title.trim()) return 'Bitte einen Titel eingeben.'
+      if (!input.title.trim()) return 'Bitte gib zuerst eine Aufgabe ein.'
+      // Schutz vor Doppelaktionen: gleiche Aufgabe innerhalb weniger Sekunden nicht zweimal anlegen
+      const key = input.title.trim().toLowerCase()
+      const now = Date.now()
+      if (creatingRef.current && creatingRef.current.title === key && now - creatingRef.current.at < 5000) return null
+      creatingRef.current = { title: key, at: now }
       const row = { ...inputToRow(input), family_id: profile.family_id, status: 'open' as const }
       const { data, error } = await supabase.from('tasks').insert(row).select('*').single()
-      if (error) return errMsg(error)
+      if (error) {
+        creatingRef.current = null
+        return errMsg(error)
+      }
       const t = data as Task
       applyTask(t)
       return null
