@@ -113,3 +113,12 @@ familien-liste/
 - **„Profil fehlt“ nach dem Anmelden:** Schritt 1 (SQL) erneut ausführen, dann in der App „Neu laden“.
 - **„E-Mail oder Passwort ist falsch“:** In Supabase unter Authentication → Users beim Benutzer **Reset password** nutzen, oder prüfen, ob „Auto Confirm User“ gesetzt war.
 - **Änderungen erscheinen nicht auf einem anderen Gerät:** App kurz in den Hintergrund und wieder öffnen – dann wird neu geladen. Live-Updates funktionieren, sobald Realtime im Supabase-Projekt aktiv ist (ist im SQL-Block enthalten).
+
+## Datenschutz & Sicherheit (Version 1)
+
+- Gespeichert wird nur, was die App braucht: E-Mail (nur für die Anmeldung), Anzeigename, optional Handynummer für WhatsApp-Erinnerungen, Familie, Rolle, Aufgaben, Kategorien, Erfolge, Historie.
+- Nicht erfasst: Standort, Kontakte, Werbe-IDs, Geräte-Fingerprinting, Telemetrie, Tracking (kein Google Analytics, kein Meta Pixel, keine Marketing-SDKs).
+- Jede Familie ist über Row Level Security vollständig von anderen getrennt; Kinder-Rechte sind serverseitig durchgesetzt.
+- Im Frontend liegt nur der öffentliche Supabase-Publishable-Key. Der `service_role`-Key darf nirgends in Code, Repository oder Netlify-Einstellungen auftauchen.
+- Mitglieder werden nur deaktiviert, nie hart gelöscht; Historie bleibt erhalten.
+- Prüfen: In Supabase → SQL Editor `select * from public.security_check();` ausführen – jede Tabelle muss `rls_aktiv = true` zeigen.
