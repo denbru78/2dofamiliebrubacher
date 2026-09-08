@@ -24,6 +24,7 @@ export function QuickCapture() {
       assignee_ids: [],
       recurrence: 'none',
       recurrence_interval: 1,
+      reminder_type: 'none',
     })
     setBusy(false)
     if (err) {

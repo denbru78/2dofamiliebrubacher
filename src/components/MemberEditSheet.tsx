@@ -41,6 +41,7 @@ export function MemberEditSheet({ member, onClose }: { member: Profile; onClose:
   const [color, setColor] = useState<MemberColor>(memberColorKey(member))
   const [role, setRole] = useState<Role>(member.role)
   const [active, setActive] = useState<boolean>(member.active !== false)
+  const [phone, setPhone] = useState(member.phone ?? '')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const isSelf = profile?.id === member.id
@@ -52,7 +53,7 @@ export function MemberEditSheet({ member, onClose }: { member: Profile; onClose:
     }
     setBusy(true)
     setError(null)
-    const err = await updateMemberProfile(member.id, { display_name: name.trim(), avatar, role, active, color })
+    const err = await updateMemberProfile(member.id, { display_name: name.trim(), avatar, role, active, color, phone: phone.trim() || null })
     setBusy(false)
     if (err) {
       setError(err)
@@ -83,6 +84,10 @@ export function MemberEditSheet({ member, onClose }: { member: Profile; onClose:
         <div className="field">
           <span className="label">Farbe</span>
           <ColorPicker value={color} onPick={setColor} />
+        </div>
+        <div className="field">
+          <label htmlFor="mphone">Handynummer (für WhatsApp-Erinnerungen, optional)</label>
+          <input id="mphone" className="input" inputMode="tel" placeholder="z. B. 0171 1234567" value={phone} onChange={(e) => setPhone(e.target.value)} />
         </div>
         <div className="field">
           <span className="label">Rolle</span>

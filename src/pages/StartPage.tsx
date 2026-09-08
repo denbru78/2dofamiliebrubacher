@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { View } from '../App'
 import type { Task } from '../lib/types'
 import { useStore } from '../lib/store'
@@ -10,6 +10,9 @@ import { QuickCapture } from '../components/QuickCapture'
 import { TaskCard } from '../components/TaskCard'
 import { IconChevron, IconPlus } from '../components/Icons'
 import { AppIcon } from '../components/AppIcon'
+import { NotificationsSheet } from '../components/NotificationsSheet'
+import { alreadyShown, dueReminders, markShown, showLocalNotification } from '../lib/reminders'
+import { todayISO } from '../lib/dates'
 
 interface Props {
   go: (v: View, personFilter?: string, urgentOnly?: boolean) => void
@@ -34,7 +37,8 @@ function relevance(t: Task, prioritiesEnabled: boolean): number {
 }
 
 export function StartPage({ go, onNew, onEdit }: Props) {
-  const { profile, profiles, tasks, isAdmin, settings, achievements, weekProgress, profileById } = useStore()
+  const { profile, profiles, tasks, isAdmin, settings, achievements, weekProgress, profileById, unreadCount } = useStore()
+  const [notifOpen, setNotifOpen] = useState(false)
   const prio = settings.priorities_enabled
   const open = useMemo(() => tasks.filter((t) => t.status === 'open' || t.status === 'claimed'), [tasks])
   const mine = useMemo(() => open.filter((t) => profile && t.assignee_ids.includes(profile.id)), [open, profile])
@@ -67,10 +71,33 @@ export function StartPage({ go, onNew, onEdit }: Props) {
 
   const countFor = (id: string) => open.filter((t) => t.assignee_ids.includes(id)).length
 
+  // Tageszusammenfassung + lokale Erinnerungen (einmal pro Tag, keine Flut)
+  const myDueToday = useMemo(
+    () => mine.filter((t) => ['today', 'overdue'].includes(dueState(t.due_kind, t.due_date))),
+    [mine],
+  )
+  useEffect(() => {
+    if (!profile || !settings.reminders_enabled) return
+    const stamp = todayISO()
+    const rem = dueReminders(tasks, profile.id).filter((t) => !alreadyShown(`r:${t.id}`, stamp))
+    if (rem.length > 0) {
+      showLocalNotification(rem.length === 1 ? 'Erinnerung' : `${rem.length} Erinnerungen`, rem.map((t) => t.title).join(' · '))
+      rem.forEach((t) => markShown(`r:${t.id}`, stamp))
+    }
+    if (myDueToday.length > 0 && !alreadyShown('digest', stamp)) {
+      showLocalNotification('Familien-Liste', `Heute ${myDueToday.length === 1 ? 'ist 1 Aufgabe' : `sind ${myDueToday.length} Aufgaben`} offen.`)
+      markShown('digest', stamp)
+    }
+  }, [profile, settings.reminders_enabled, tasks, myDueToday])
+
   return (
     <div className="page">
       <div className="hero">
         <HeroIllustration />
+        <button className="bell-btn" onClick={() => setNotifOpen(true)} aria-label="Mitteilungen">
+          <AppIcon name="bell" size={20} />
+          {unreadCount > 0 && <span className="bell-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>}
+        </button>
         <h1>Unser Plan</h1>
         <p className="subtitle">Gemeinsam mehr schaffen ♡</p>
         <div className="family-row">
@@ -94,6 +121,15 @@ export function StartPage({ go, onNew, onEdit }: Props) {
       </div>
 
       {isAdmin && <QuickCapture />}
+
+      {myDueToday.length > 0 && (
+        <button className="digest-banner" onClick={() => setNotifOpen(true)}>
+          <AppIcon name="sun" size={18} />
+          <span>
+            Heute {myDueToday.length === 1 ? 'ist 1 Aufgabe' : `sind ${myDueToday.length} Aufgaben`} für dich offen.
+          </span>
+        </button>
+      )}
 
       <div className="card">
         <div className="card-head">
@@ -215,6 +251,7 @@ export function StartPage({ go, onNew, onEdit }: Props) {
         )}
       </div>
       )}
+      {notifOpen && <NotificationsSheet onClose={() => setNotifOpen(false)} />}
     </div>
   )
 }

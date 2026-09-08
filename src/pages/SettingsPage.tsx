@@ -22,11 +22,14 @@ export function SettingsPage() {
   const [name, setName] = useState(profile?.display_name ?? '')
   const [goal, setGoal] = useState(String(settings.weekly_goal))
   const [fam, setFam] = useState(familyName)
+  const [phone, setPhone] = useState(profile?.phone ?? '')
+  const [perm, setPerm] = useState<string>(typeof Notification !== 'undefined' ? Notification.permission : 'unsupported')
   const [busy, setBusy] = useState(false)
 
   useEffect(() => setName(profile?.display_name ?? ''), [profile?.display_name])
   useEffect(() => setGoal(String(settings.weekly_goal)), [settings.weekly_goal])
   useEffect(() => setFam(familyName), [familyName])
+  useEffect(() => setPhone(profile?.phone ?? ''), [profile?.phone])
 
   if (!profile) return null
 
@@ -44,7 +47,21 @@ export function SettingsPage() {
     if (err) toast(err, 'error')
   }
 
-  const toggle = async (key: 'priorities_enabled' | 'kids_can_claim_pool' | 'achievements_enabled') => {
+  const savePhone = async () => {
+    const v = phone.trim() || null
+    if (v === (profile?.phone ?? null)) return
+    const err = await updateProfile({ phone: v })
+    toast(err ?? 'Handynummer gespeichert', err ? 'error' : 'info')
+  }
+
+  const askPermission = async () => {
+    if (typeof Notification === 'undefined') return
+    const r = await Notification.requestPermission()
+    setPerm(r)
+    toast(r === 'granted' ? 'Erinnerungen auf diesem Gerät aktiv' : 'Keine Erlaubnis erteilt', r === 'granted' ? 'info' : 'error')
+  }
+
+  const toggle = async (key: 'priorities_enabled' | 'kids_can_claim_pool' | 'achievements_enabled' | 'reminders_enabled') => {
     const err = await updateSettings({ [key]: !settings[key] })
     if (err) toast(err, 'error')
   }
@@ -103,7 +120,16 @@ export function SettingsPage() {
           <span className="label">Avatar</span>
           <AvatarPicker value={profile.avatar} onPick={pickAvatar} name={profile.display_name} color={profile.color} />
         </div>
-        <div className="field" style={{ marginBottom: 0, marginTop: 14 }}>
+        <div className="field" style={{ marginTop: 14 }}>
+          <label htmlFor="myphone">Meine Handynummer (für WhatsApp, optional)</label>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <input id="myphone" className="input" inputMode="tel" placeholder="z. B. 0171 1234567" value={phone} onChange={(e) => setPhone(e.target.value)} />
+            <button className="btn" onClick={savePhone} disabled={phone.trim() === (profile.phone ?? '')}>
+              Speichern
+            </button>
+          </div>
+        </div>
+        <div className="field" style={{ marginBottom: 0 }}>
           <span className="label">Meine Farbe</span>
           <ColorPicker
             value={memberColorKey(profile)}
@@ -165,12 +191,37 @@ export function SettingsPage() {
       )}
 
       <div className="card">
-        <div className="toggle-row" style={{ paddingTop: 0 }}>
+        <h2 style={{ marginBottom: 6 }}>Benachrichtigungen</h2>
+        <div className="toggle-row">
           <div>
-            <div style={{ fontWeight: 600 }}>Benachrichtigungen</div>
-            <div className="muted small">Kommt in einer späteren Version (neue Aufgabe, heute fällig, Wochenziel erreicht).</div>
+            <div style={{ fontWeight: 600 }}>Erinnerungen auf diesem Gerät</div>
+            <div className="muted small">
+              {perm === 'granted'
+                ? 'Aktiv – die App zeigt Erinnerungen und die Tageszusammenfassung, solange sie geöffnet ist.'
+                : perm === 'denied'
+                  ? 'In den Handy-Einstellungen für diese App blockiert.'
+                  : perm === 'unsupported'
+                    ? 'Auf diesem Gerät nicht verfügbar. Mitteilungen findest du über die Glocke auf der Startseite.'
+                    : 'Einmal erlauben, damit das Gerät Erinnerungen anzeigen darf.'}
+            </div>
           </div>
-          <button className="switch" disabled aria-label="Benachrichtigungen (noch nicht verfügbar)" style={{ opacity: 0.4 }} />
+          {perm === 'default' && (
+            <button className="btn sm" onClick={askPermission}>
+              Erlauben
+            </button>
+          )}
+        </div>
+        {isAdmin && (
+          <div className="toggle-row">
+            <div>
+              <div style={{ fontWeight: 600 }}>Erinnerungen für die Familie</div>
+              <div className="muted small">Schaltet Erinnerungen an Aufgaben für alle ein oder aus.</div>
+            </div>
+            <button className={`switch ${settings.reminders_enabled ? 'on' : ''}`} onClick={() => toggle('reminders_enabled')} role="switch" aria-checked={settings.reminders_enabled} aria-label="Erinnerungen für die Familie" />
+          </div>
+        )}
+        <div className="muted small" style={{ marginTop: 6 }}>
+          Es gibt bewusst keine Einzelmeldung pro Aufgabe: Fälliges wird als eine Tageszusammenfassung gebündelt („Heute sind 3 Aufgaben offen“). Push-Nachrichten bei geschlossener App sind vorbereitet und kommen später.
         </div>
       </div>
 

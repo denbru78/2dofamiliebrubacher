@@ -6,6 +6,8 @@ import { dueLabel, formatDateTime } from '../lib/dates'
 import { Avatar } from './Avatar'
 import { IconX } from './Icons'
 import { AppIcon } from './AppIcon'
+import { reminderLabel } from '../lib/reminders'
+import { openWhatsApp } from '../lib/whatsapp'
 
 interface Props {
   task: Task
@@ -33,6 +35,8 @@ export function TaskDetail({ task, onClose, onEdit }: Props) {
   const completer = profileById(task.completed_by)
   const due = dueLabel(task.due_kind, task.due_date)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const whatsappText = (who: string | null) =>
+    `${who ? `Hallo ${who}, ` : ''}kurze Erinnerung aus unserer Familien-Liste: „${task.title}“${due ? ` – ${due}` : ''}${task.is_pool ? ' (liegt noch im Familien-Pool)' : ''}. ${window.location.origin}`
 
   const run = async (fn: () => Promise<string | null>, close = true) => {
     const err = await fn()
@@ -91,6 +95,14 @@ export function TaskDetail({ task, onClose, onEdit }: Props) {
             <span className="detail-label">Fälligkeit</span>
             <span>{due || <span className="muted">Kein Termin</span>}</span>
           </div>
+          {task.reminder_type !== 'none' && (
+            <div className="detail-row">
+              <span className="detail-label">Erinnerung</span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <AppIcon name="bell" size={16} /> {reminderLabel(task)}
+              </span>
+            </div>
+          )}
           {task.description && (
             <div className="detail-row col">
               <span className="detail-label">Beschreibung</span>
@@ -152,6 +164,20 @@ export function TaskDetail({ task, onClose, onEdit }: Props) {
             <button className="btn secondary block" onClick={() => run(() => reopenTask(task.id))}>
               {isAdmin ? 'Wieder öffnen' : 'Rückgängig'}
             </button>
+          )}
+          {!isDone && (
+            <div className="task-actions" style={{ marginTop: 4 }}>
+              {(assignees.length ? assignees : []).map((p) => (
+                <button key={p.id} className="btn sm secondary" onClick={() => openWhatsApp(p.phone, whatsappText(p.display_name))}>
+                  <AppIcon name="bell" size={14} /> {p.display_name} per WhatsApp erinnern
+                </button>
+              ))}
+              {assignees.length === 0 && (
+                <button className="btn sm secondary" onClick={() => openWhatsApp(null, whatsappText(null))}>
+                  <AppIcon name="bell" size={14} /> Per WhatsApp teilen
+                </button>
+              )}
+            </div>
           )}
           {isAdmin && (
             <div className="task-actions" style={{ marginTop: 4 }}>

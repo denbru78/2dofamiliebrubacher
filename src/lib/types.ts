@@ -3,6 +3,7 @@ export type Priority = 'none' | 'normal' | 'important' | 'urgent'
 export type Status = 'open' | 'claimed' | 'done' | 'archived'
 export type DueKind = 'none' | 'today' | 'tomorrow' | 'week' | 'weekend' | 'someday' | 'date'
 export type Recurrence = 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly'
+export type ReminderType = 'none' | 'due_morning' | 'day_before' | 'custom'
 
 export interface Profile {
   id: string
@@ -12,6 +13,7 @@ export interface Profile {
   avatar: string
   active: boolean
   color: string | null
+  phone: string | null
   created_at: string
 }
 
@@ -21,6 +23,19 @@ export interface Settings {
   weekly_goal: number
   kids_can_claim_pool: boolean
   achievements_enabled: boolean
+  reminders_enabled: boolean
+}
+
+export interface Notification {
+  id: string
+  family_id: string
+  profile_id: string | null
+  type: string
+  title: string
+  body: string | null
+  task_id: string | null
+  read_by: string[]
+  created_at: string
 }
 
 export interface Category {
@@ -49,6 +64,8 @@ export interface Task {
   status: Status
   recurrence: Recurrence
   recurrence_interval: number
+  reminder_type: ReminderType
+  reminder_at: string | null
   created_by: string | null
   created_at: string
   updated_at: string
@@ -86,4 +103,5 @@ export interface TaskInput {
   assignee_ids: string[]
   recurrence: Recurrence
   recurrence_interval: number
+  reminder_type: ReminderType
 }

@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import type { ReactNode } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from './supabase'
-import type { Achievement, Activity, Category, Profile, Role, Settings, Task, TaskInput } from './types'
+import type { Achievement, Activity, Category, Notification, Profile, Role, Settings, Task, TaskInput } from './types'
 import { computeNewUnlocks, achievementDef } from './achievements'
 import { CATEGORIES, categoryEmoji } from './constants'
 import { nextDueDate, resolveDueDate, startOfWeek } from './dates'
@@ -25,6 +25,9 @@ interface StoreValue {
   profile: Profile | null
   familyName: string
   updateFamilyName: (name: string) => Promise<string | null>
+  notifications: Notification[]
+  unreadCount: number
+  markNotificationsRead: (ids?: string[]) => Promise<void>
   detailTaskId: string | null
   openTask: (id: string) => void
   closeTask: () => void
@@ -56,16 +59,16 @@ interface StoreValue {
   claimTask: (id: string) => Promise<string | null>
   releaseTask: (id: string) => Promise<string | null>
   archiveTask: (id: string) => Promise<string | null>
-  updateProfile: (patch: { display_name?: string; avatar?: string; color?: string }) => Promise<string | null>
-  updateMemberProfile: (id: string, patch: { display_name?: string; avatar?: string; role?: Role; active?: boolean; color?: string }) => Promise<string | null>
-  updateSettings: (patch: Partial<Pick<Settings, 'priorities_enabled' | 'weekly_goal' | 'kids_can_claim_pool' | 'achievements_enabled'>>) => Promise<string | null>
+  updateProfile: (patch: { display_name?: string; avatar?: string; color?: string; phone?: string | null }) => Promise<string | null>
+  updateMemberProfile: (id: string, patch: { display_name?: string; avatar?: string; role?: Role; active?: boolean; color?: string; phone?: string | null }) => Promise<string | null>
+  updateSettings: (patch: Partial<Pick<Settings, 'priorities_enabled' | 'weekly_goal' | 'kids_can_claim_pool' | 'achievements_enabled' | 'reminders_enabled'>>) => Promise<string | null>
   profileById: (id: string | null | undefined) => Profile | undefined
   weekProgress: { done: number; total: number; goal: number }
 }
 
 const StoreContext = createContext<StoreValue | null>(null)
 
-const DEFAULT_SETTINGS: Settings = { family_id: '', priorities_enabled: true, weekly_goal: 10, kids_can_claim_pool: true, achievements_enabled: true }
+const DEFAULT_SETTINGS: Settings = { family_id: '', priorities_enabled: true, weekly_goal: 10, kids_can_claim_pool: true, achievements_enabled: true, reminders_enabled: true }
 
 function errMsg(e: unknown): string {
   if (!e) return 'Unbekannter Fehler'
@@ -91,6 +94,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [allCategories, setAllCategories] = useState<Category[]>([])
   const [familyName, setFamilyName] = useState('Unsere Familie')
   const [detailTaskId, setDetailTaskId] = useState<string | null>(null)
+  const [notifications, setNotifications] = useState<Notification[]>([])
   const [tasks, setTasks] = useState<Task[]>([])
   const [activities, setActivities] = useState<Activity[]>([])
   const [achievements, setAchievements] = useState<Achievement[]>([])
@@ -141,6 +145,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         supabase.from('achievements').select('*'),
         supabase.from('categories').select('*').order('sort_order').order('name'),
       ])
+      const nRes = await supabase.from('notifications').select('*').order('created_at', { ascending: false }).limit(100)
+      if (!nRes.error) setNotifications((nRes.data ?? []) as Notification[])
       const fRes = await supabase.from('families').select('name').limit(1)
       if (!fRes.error && fRes.data && fRes.data[0]) setFamilyName((fRes.data[0] as { name: string }).name)
       if (pRes.error) throw pRes.error
@@ -174,6 +180,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setActivities([])
       setAchievements([])
       setAllCategories([])
+      setNotifications([])
       setSettings(DEFAULT_SETTINGS)
       return
     }
@@ -190,6 +197,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'achievements' }, () => reload())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'settings' }, () => reload())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'categories' }, () => reload())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, () => reload())
       .subscribe()
     const onVisible = () => {
       if (document.visibilityState === 'visible') reload()
@@ -300,6 +308,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         is_pool: assignees.length === 0,
         recurrence: input.recurrence,
         recurrence_interval: input.recurrence === 'none' ? 1 : Math.max(1, input.recurrence_interval || 1),
+        reminder_type: input.reminder_type,
       }
     },
     [profiles],
@@ -357,6 +366,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           status: 'open' as const,
           recurrence: old.recurrence,
           recurrence_interval: old.recurrence_interval,
+          reminder_type: old.reminder_type === 'custom' ? 'none' : old.reminder_type,
         }
         const { data, error: insErr } = await supabase.from('tasks').insert(next).select('*').single()
         if (insErr) return errMsg(insErr)
@@ -444,7 +454,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   )
 
   const updateProfile = useCallback(
-    async (patch: { display_name?: string; avatar?: string; color?: string }) => {
+    async (patch: { display_name?: string; avatar?: string; color?: string; phone?: string | null }) => {
       if (!profile) return 'Nicht angemeldet.'
       const { data, error } = await supabase.from('profiles').update(patch).eq('id', profile.id).select('*').single()
       if (error) return errMsg(error)
@@ -457,7 +467,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   )
 
   const updateMemberProfile = useCallback(
-    async (id: string, patch: { display_name?: string; avatar?: string; role?: Role; active?: boolean; color?: string }) => {
+    async (id: string, patch: { display_name?: string; avatar?: string; role?: Role; active?: boolean; color?: string; phone?: string | null }) => {
       if (!profile) return 'Nicht angemeldet.'
       if (profile.role !== 'admin') return 'Nur Eltern können andere Profile bearbeiten.'
       if (id === profile.id && patch.role && patch.role !== 'admin') return 'Du kannst dir selbst nicht die Admin-Rolle entziehen.'
@@ -546,11 +556,24 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [profile],
   )
 
+  const unreadCount = useMemo(() => (profile ? notifications.filter((n) => !n.read_by.includes(profile.id)).length : 0), [notifications, profile])
+
+  const markNotificationsRead = useCallback(
+    async (ids?: string[]) => {
+      if (!profile) return
+      const targets = notifications.filter((n) => !n.read_by.includes(profile.id) && (!ids || ids.includes(n.id)))
+      if (targets.length === 0) return
+      setNotifications((all) => all.map((n) => (targets.some((t) => t.id === n.id) ? { ...n, read_by: [...n.read_by, profile.id] } : n)))
+      await Promise.all(targets.map((n) => supabase.from('notifications').update({ read_by: [...n.read_by, profile.id] }).eq('id', n.id)))
+    },
+    [profile, notifications],
+  )
+
   const openTask = useCallback((id: string) => setDetailTaskId(id), [])
   const closeTask = useCallback(() => setDetailTaskId(null), [])
 
   const updateSettings = useCallback(
-    async (patch: Partial<Pick<Settings, 'priorities_enabled' | 'weekly_goal' | 'kids_can_claim_pool' | 'achievements_enabled'>>) => {
+    async (patch: Partial<Pick<Settings, 'priorities_enabled' | 'weekly_goal' | 'kids_can_claim_pool' | 'achievements_enabled' | 'reminders_enabled'>>) => {
       if (!profile) return 'Nicht angemeldet.'
       const { data, error } = await supabase
         .from('settings')
@@ -580,6 +603,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     profile,
     familyName,
     updateFamilyName,
+    notifications,
+    unreadCount,
+    markNotificationsRead,
     detailTaskId,
     openTask,
     closeTask,

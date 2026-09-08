@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import type { DueKind, Priority, Task, TaskInput } from '../lib/types'
+import type { DueKind, Priority, ReminderType, Task, TaskInput } from '../lib/types'
+import { REMINDER_TYPES } from '../lib/reminders'
 import { useStore } from '../lib/store'
 import {
   categoryShort,
@@ -33,6 +34,7 @@ function emptyInput(): TaskInput {
     assignee_ids: [],
     recurrence: 'none',
     recurrence_interval: 1,
+    reminder_type: 'none',
   }
 }
 
@@ -49,6 +51,7 @@ function fromTask(t: Task): TaskInput {
     assignee_ids: t.assignee_ids,
     recurrence: t.recurrence,
     recurrence_interval: t.recurrence_interval ?? 1,
+    reminder_type: t.reminder_type === 'custom' ? 'custom' : (t.reminder_type ?? 'none'),
   }
 }
 
@@ -169,6 +172,7 @@ export function TaskForm({ task, onClose, onGoToTasks }: Props) {
   }
 
   const isPool = input.assignee_ids.length === 0 && whoMode !== 'multi'
+  const hasDate = input.due_kind !== 'none' && input.due_kind !== 'someday' && (input.due_kind !== 'date' || !!input.due_date)
   const showN = recChoice === 'weeks_n' || recChoice === 'months_n'
 
   // ---- Erfolgsschritt nach dem Speichern ----------------------------------
@@ -295,6 +299,18 @@ export function TaskForm({ task, onClose, onGoToTasks }: Props) {
           </div>
           {input.due_kind === 'date' && (
             <input className="input" type="date" value={input.due_date} onChange={(e) => set('due_date', e.target.value)} style={{ marginTop: 10 }} />
+          )}
+          {hasDate && settings.reminders_enabled && (
+            <div style={{ marginTop: 12 }}>
+              <span className="label">Erinnerung</span>
+              <div className="chips wrap">
+                {REMINDER_TYPES.map((r) => (
+                  <button key={r.value} className={`chip ${input.reminder_type === r.value ? 'active' : ''}`} onClick={() => set('reminder_type', r.value as ReminderType)}>
+                    {r.label}
+                  </button>
+                ))}
+              </div>
+            </div>
           )}
         </div>
 

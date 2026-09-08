@@ -6,6 +6,7 @@ import { Avatar } from './Avatar'
 import { IconCheck, IconEdit } from './Icons'
 import { AppIcon } from './AppIcon'
 import { memberColor } from '../lib/colors'
+import { reminderLabel } from '../lib/reminders'
 
 interface Props {
   task: Task
@@ -76,6 +77,11 @@ export function TaskCard({ task, onEdit, compact = false, showHistory = false, s
           {!isDone && due && <span className={`tag ${ds === 'today' ? 'today' : ds === 'overdue' ? 'overdue' : ''}`}>{due}</span>}
           {settings.priorities_enabled && task.priority !== 'none' && (
             <span className={`tag ${task.priority}`}>{priorityLabel(task.priority)}</span>
+          )}
+          {!compact && !isDone && task.reminder_type !== 'none' && (
+            <span className="tag">
+              <AppIcon name="bell" size={12} /> {reminderLabel(task)}
+            </span>
           )}
           {!compact && task.recurrence !== 'none' && (
             <span className="tag">
