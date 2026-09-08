@@ -2,8 +2,9 @@ import { useStore } from '../lib/store'
 import { ACHIEVEMENT_DEFS } from '../lib/achievements'
 import { Avatar } from '../components/Avatar'
 import { formatDate } from '../lib/dates'
+import { IconBack } from '../components/Icons'
 
-export function AchievementsPage() {
+export function AchievementsPage({ onBack }: { onBack: () => void }) {
   const { achievements, profiles, profile, tasks } = useStore()
   const doneTotal = tasks.filter((t) => t.status === 'done' || t.status === 'archived').length
   const personal = ACHIEVEMENT_DEFS.filter((d) => d.scope === 'personal')
@@ -14,6 +15,9 @@ export function AchievementsPage() {
 
   return (
     <div className="page">
+      <button className="back-btn" onClick={onBack}>
+        <IconBack /> Unser Plan
+      </button>
       <div className="page-head">
         <div>
           <h1>Erfolge</h1>

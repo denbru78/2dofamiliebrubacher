@@ -1180,3 +1180,93 @@ details.more[open] summary::before {
 .section-gap {
   height: 8px;
 }
+
+/* ---------- Start V1 Ergänzungen ---------- */
+.card-title-btn {
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.card-btn {
+  display: block;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+}
+
+.card-btn:active {
+  transform: scale(0.99);
+}
+
+.ach-inline {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ach-inline .ach-emoji {
+  font-size: 30px;
+  line-height: 1;
+}
+
+.member-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid var(--line);
+  padding: 6px 0;
+}
+
+.member-row:last-child {
+  border-bottom: 0;
+}
+
+.member-main {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+  padding: 6px 0;
+  min-height: 56px;
+  min-width: 0;
+}
+
+.back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--sage-deep);
+  font-weight: 600;
+  font-size: 14px;
+  min-height: 36px;
+  margin-bottom: 4px;
+}
+
+.hero {
+  padding-right: 120px;
+}
+
+@media (max-width: 380px) {
+  .hero-illu {
+    width: 100px;
+  }
+  .hero {
+    padding-right: 90px;
+  }
+  .hero .family-row {
+    margin-right: -106px;
+  }
+}
+
+.family-row {
+  padding-right: 16px;
+}
+
+.hero .family-row {
+  margin-right: -136px;
+  padding-right: 16px;
+}

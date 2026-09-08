@@ -10,9 +10,10 @@ interface Props {
   onEdit?: (task: Task) => void
   compact?: boolean
   showHistory?: boolean
+  showClaim?: boolean
 }
 
-export function TaskCard({ task, onEdit, compact = false, showHistory = false }: Props) {
+export function TaskCard({ task, onEdit, compact = false, showHistory = false, showClaim = false }: Props) {
   const { profile, isAdmin, settings, profileById, completeTask, reopenTask, claimTask, releaseTask, toast } = useStore()
   const isDone = task.status === 'done' || task.status === 'archived'
   const isMine = !!profile && task.assignee_ids.includes(profile.id)
@@ -86,6 +87,13 @@ export function TaskCard({ task, onEdit, compact = false, showHistory = false }:
         {(isDone || showHistory) && task.completed_at && (
           <div className="task-desc small">
             Erledigt von {completer?.display_name ?? 'unbekannt'} am {formatDateTime(task.completed_at)}
+          </div>
+        )}
+        {compact && showClaim && canClaim && (
+          <div className="task-actions">
+            <button className="btn sm" onClick={() => run(() => claimTask(task.id))}>
+              Ich übernehme
+            </button>
           </div>
         )}
         {!compact && !isDone && (canClaim || (isAdmin && !task.is_pool)) && (

@@ -3,6 +3,7 @@ import type { Priority, Task } from '../lib/types'
 import { useStore } from '../lib/store'
 import { CATEGORIES, PRIORITIES } from '../lib/constants'
 import { dueState } from '../lib/dates'
+import { isImportantNow } from './StartPage'
 import { Avatar } from '../components/Avatar'
 import { TaskCard } from '../components/TaskCard'
 import { IconSearch, IconX } from '../components/Icons'
@@ -10,12 +11,14 @@ import { IconSearch, IconX } from '../components/Icons'
 interface Props {
   personFilter: string // 'all' | 'pool' | profile id
   setPersonFilter: (v: string) => void
+  urgentOnly: boolean
+  setUrgentOnly: (v: boolean) => void
   onEdit: (t: Task) => void
 }
 
 const PRIO_RANK: Record<Priority, number> = { urgent: 0, important: 1, normal: 2, none: 3 }
 
-export function TasksPage({ personFilter, setPersonFilter, onEdit }: Props) {
+export function TasksPage({ personFilter, setPersonFilter, urgentOnly, setUrgentOnly, onEdit }: Props) {
   const { tasks, profiles, settings, profileById } = useStore()
   const [showDone, setShowDone] = useState(false)
   const [category, setCategory] = useState('all')
@@ -27,6 +30,7 @@ export function TasksPage({ personFilter, setPersonFilter, onEdit }: Props) {
     let list = tasks.filter((t) => (showDone ? t.status === 'done' || t.status === 'archived' : t.status === 'open' || t.status === 'claimed'))
     if (personFilter === 'pool') list = list.filter((t) => t.is_pool)
     else if (personFilter !== 'all') list = list.filter((t) => t.assignee_ids.includes(personFilter))
+    if (urgentOnly && !showDone) list = list.filter((t) => isImportantNow(t, settings.priorities_enabled))
     if (category !== 'all') list = list.filter((t) => t.category === category)
     if (settings.priorities_enabled && priority !== 'all') list = list.filter((t) => t.priority === priority)
     if (q) {
@@ -51,7 +55,7 @@ export function TasksPage({ personFilter, setPersonFilter, onEdit }: Props) {
       })
     }
     return list
-  }, [tasks, showDone, personFilter, category, priority, query, settings.priorities_enabled, profileById])
+  }, [tasks, showDone, personFilter, category, priority, query, urgentOnly, settings.priorities_enabled, profileById])
 
   const filterName =
     personFilter === 'all' ? 'Alle' : personFilter === 'pool' ? 'Familien-Pool' : (profileById(personFilter)?.display_name ?? 'Alle')
@@ -107,6 +111,11 @@ export function TasksPage({ personFilter, setPersonFilter, onEdit }: Props) {
         <button className={`chip ${showDone ? 'active' : ''}`} onClick={() => setShowDone(true)}>
           Erledigt
         </button>
+        {!showDone && (
+          <button className={`chip ${urgentOnly ? 'active' : ''}`} onClick={() => setUrgentOnly(!urgentOnly)}>
+            Heute wichtig
+          </button>
+        )}
         <select className="select chip" style={{ minHeight: 38, padding: '6px 34px 6px 14px', width: 'auto' }} value={category} onChange={(e) => setCategory(e.target.value)} aria-label="Kategorie">
           <option value="all">Alle Kategorien</option>
           {CATEGORIES.map((c) => (
