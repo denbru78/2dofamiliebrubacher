@@ -149,6 +149,8 @@ declare
   fam uuid;
   seed record;
 begin
+  -- Nur die vier festen Seed-Adressen bekommen automatisch ein Profil in der Familie.
+  -- Alle anderen Nutzer bleiben ohne family_id (Onboarding: Familie erstellen / Einladung annehmen).
   select * into seed from public.family_seed where lower(email) = lower(new.email);
   if seed.email is not null then
     select id into fam from public.families order by created_at limit 1;
@@ -160,12 +162,6 @@ begin
             case seed.avatar when '/avatars/papa.png' then 'sage' when '/avatars/mama.png' then 'rose'
                              when '/avatars/mia.png' then 'pink' when '/avatars/leo.png' then 'blue' else 'grey' end)
     on conflict (id) do nothing;
-  elsif not exists (select 1 from public.profiles) then
-    -- Erster Nutzer überhaupt: eigene Familie als Admin
-    insert into public.families (name, created_by) values ('Unsere Familie', new.id) returning id into fam;
-    insert into public.profiles (id, family_id, display_name, role, avatar, color)
-    values (new.id, fam, initcap(split_part(new.email, '@', 1)), 'admin', '', 'sage')
-    on conflict (id) do nothing;
   end if;
   return new;
 end;
@@ -176,7 +172,9 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
 
--- Reparatur: Profile für bereits vorhandene Benutzer ohne Profil anlegen
+-- Reparatur: Profile NUR für die vier festen Seed-Konten (family_seed) nachtragen.
+-- Fremde oder frisch registrierte Nutzer bleiben ohne Familie und laufen über
+-- "Familie erstellen" bzw. "Einladung annehmen". Bestehende Zuordnungen werden nie verändert.
 do $$
 declare
   u record;
@@ -184,13 +182,17 @@ declare
   seed record;
 begin
   select id into fam from public.families order by created_at limit 1;
-  for u in select id, email from auth.users where id not in (select id from public.profiles) loop
+  if fam is null then return; end if;
+  for u in
+    select au.id, au.email from auth.users au
+    where au.id not in (select id from public.profiles)
+      and lower(au.email) in (select lower(email) from public.family_seed)
+  loop
     select * into seed from public.family_seed where lower(email) = lower(u.email);
-    insert into public.profiles (id, family_id, display_name, role, avatar)
-    values (u.id, fam,
-            coalesce(seed.display_name, initcap(split_part(u.email, '@', 1))),
-            coalesce(seed.role, 'member'),
-            coalesce(seed.avatar, '🙂'))
+    insert into public.profiles (id, family_id, display_name, role, avatar, color)
+    values (u.id, fam, seed.display_name, seed.role, seed.avatar,
+            case seed.avatar when '/avatars/papa.png' then 'sage' when '/avatars/mama.png' then 'rose'
+                             when '/avatars/mia.png' then 'pink' when '/avatars/leo.png' then 'blue' else 'grey' end)
     on conflict (id) do nothing;
   end loop;
 end $$;
@@ -337,7 +339,9 @@ declare
   t jsonb;
   ids uuid[];
   next_date date;
+  f record;
 begin
+  -- Abschluss: Folgeaufgabe aus der Serienvorlage anlegen (alte Aufgabe bleibt erhalten)
   if new.status = 'done' and old.status <> 'done' and new.recurrence_enabled and new.recurrence <> 'none' then
     t := coalesce(new.series_template, '{}'::jsonb);
     select coalesce(array_agg(x::uuid), '{}') into ids from jsonb_array_elements_text(coalesce(t->'assignee_ids', to_jsonb(new.assignee_ids))) as x;
@@ -347,17 +351,33 @@ begin
                               due_kind, due_date, assignee_ids, is_pool, status, recurrence, recurrence_interval,
                               created_by, reminder_type, series_id, parent_task_id, series_template)
     values (new.family_id,
-            coalesce(t->>'title', new.title),
-            coalesce(t->>'description', new.description),
-            coalesce(t->>'link', new.link),
-            coalesce((t->>'cost')::numeric, new.cost),
-            coalesce(t->>'category', new.category),
-            coalesce(t->>'priority', new.priority),
+            coalesce(t->>'title', new.title), coalesce(t->>'description', new.description),
+            coalesce(t->>'link', new.link), coalesce((t->>'cost')::numeric, new.cost),
+            coalesce(t->>'category', new.category), coalesce(t->>'priority', new.priority),
             'date', next_date, ids, coalesce((t->>'is_pool')::boolean, new.is_pool), 'open',
             new.recurrence, new.recurrence_interval, new.created_by,
             coalesce(t->>'reminder_type', 'none'),
             coalesce(new.series_id, new.id), new.id, t);
     perform set_config('familie.system_insert', 'off', true);
+  end if;
+
+  -- Rückgängig: Folgeaufgabe genau dieses Abschlusses entfernen, aber nur wenn sie unberührt ist
+  if old.status = 'done' and new.status in ('open','claimed') and new.recurrence <> 'none' then
+    for f in
+      select * from public.tasks
+      where parent_task_id = new.id
+        and status = 'open'
+        and completed_at is null
+        and updated_at = created_at                      -- nie bearbeitet, nie übernommen
+        and not exists (
+          select 1 from public.task_activity a
+          where a.task_id = tasks.id and a.action <> 'created'   -- keine weitere Aktivität
+        )
+    loop
+      perform set_config('familie.undo_series', 'on', true);
+      delete from public.tasks where id = f.id;
+      perform set_config('familie.undo_series', 'off', true);
+    end loop;
   end if;
   return new;
 end;
@@ -962,6 +982,7 @@ declare
   tid uuid := coalesce(new.id, old.id);
   ttl text := coalesce(new.title, old.title);
   auto_arch boolean := coalesce(current_setting('familie.auto_archive', true), '') = 'on';
+  undo_series boolean := coalesce(current_setting('familie.undo_series', true), '') = 'on';
 begin
   if tg_op = 'INSERT' then
     insert into public.task_activity (family_id, task_id, actor_id, action, task_title, metadata)
@@ -972,7 +993,10 @@ begin
 
   if tg_op = 'DELETE' then
     insert into public.task_activity (family_id, task_id, actor_id, action, task_title, metadata)
-    values (fam, null, uid, 'deleted', ttl, jsonb_build_object('task_id', old.id, 'status', old.status));
+    values (fam, null, uid, 'deleted', ttl,
+            jsonb_build_object('task_id', old.id, 'status', old.status,
+                               'reason', case when undo_series then 'undo_series' else null end,
+                               'parent_task_id', old.parent_task_id));
     return old;
   end if;
 
@@ -988,7 +1012,9 @@ begin
       values (fam, tid, uid, 'taken_from_pool', ttl, jsonb_build_object('assignee_ids', to_jsonb(new.assignee_ids)));
     elsif new.status in ('open','claimed') and old.status in ('done','archived') then
       insert into public.task_activity (family_id, task_id, actor_id, action, task_title, metadata)
-      values (fam, tid, uid, 'reopened', ttl, jsonb_build_object('from', old.status));
+      values (fam, tid, uid, 'reopened', ttl,
+              jsonb_build_object('from', old.status,
+                                 'undo', old.status = 'done' and old.completed_at > now() - interval '10 minutes'));
     end if;
   end if;
 

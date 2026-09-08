@@ -568,10 +568,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       if (error) return error
       if (task) {
         toast('Wieder geöffnet', 'info')
+        if (task.recurrence !== 'none') {
+          // Die Datenbank entfernt die unberührte Folgeaufgabe; ist sie bereits verändert, bleibt sie bestehen
+          await reload()
+          const { data } = await supabase.from('tasks').select('id').eq('parent_task_id', id).in('status', ['open', 'claimed']).limit(1)
+          if (data && data.length > 0) {
+            toast('Die nächste Serienaufgabe wurde bereits verändert und konnte deshalb nicht automatisch entfernt werden.', 'info')
+          }
+        }
       }
       return null
     },
-    [tasks, profile, patchTask, toast],
+    [tasks, profile, patchTask, toast, reload],
   )
   const reopenTaskRef = useRef(reopenTask)
   reopenTaskRef.current = reopenTask
