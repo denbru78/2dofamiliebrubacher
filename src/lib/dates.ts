@@ -106,6 +106,14 @@ export function dueLabel(dueKind: DueKind, dueDate: string | null): string {
   }
 }
 
+/** Kurze Termin-Anzeige für enge Zeilen: „19.09.“ statt „19.09.2026“ */
+export function dueLabelShort(dueKind: DueKind, dueDate: string | null): string {
+  const s = dueState(dueKind, dueDate)
+  if (s === 'overdue') return `Überfällig ${formatDate(dueDate).slice(0, 6)}`
+  if (s === 'later') return formatDate(dueDate).slice(0, 6)
+  return dueLabel(dueKind, dueDate)
+}
+
 export function sameDay(a: string | null, b: string | null): boolean {
   if (!a || !b) return false
   return toISODate(new Date(a)) === toISODate(new Date(b))

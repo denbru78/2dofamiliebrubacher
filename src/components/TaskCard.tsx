@@ -1,7 +1,7 @@
 import type { Task } from '../lib/types'
 import { useStore } from '../lib/store'
 import { priorityLabel, recurrenceLabel } from '../lib/constants'
-import { dueLabel, dueState, formatDateTime } from '../lib/dates'
+import { dueLabel, dueLabelShort, dueState, formatDateTime } from '../lib/dates'
 import { Avatar } from './Avatar'
 import { IconCheck, IconEdit } from './Icons'
 import { AppIcon } from './AppIcon'
@@ -75,22 +75,28 @@ export function TaskCard({ task, onEdit, compact = false, showHistory = false, s
           <button className={`task-title ${isDone ? 'done' : ''}`} onClick={() => openTask(task.id)}>
             {task.title}
           </button>
-          {compact && (
-            <span className="task-side-compact">
-              {assignees.slice(0, 2).map((p) => (
-                <Avatar key={p.id} profile={p} size="sm" />
-              ))}
-              {task.is_pool && !isDone && <span className="tag pool">Pool</span>}
-              {!isDone && due && <span className={`tag ${ds === 'today' ? 'today' : ds === 'overdue' ? 'overdue' : ''}`}>{due}</span>}
-              {settings.priorities_enabled && task.priority === 'urgent' && <span className="tag urgent">!</span>}
-            </span>
-          )}
+
           {isAdmin && onEdit && !compact && (
             <button className="icon-btn" onClick={() => onEdit(task)} aria-label="Aufgabe bearbeiten" style={{ marginLeft: 'auto' }}>
               <IconEdit />
             </button>
           )}
         </div>
+        {compact && (
+          <div className="task-meta-compact">
+            {assignees.length > 0 && (
+              <span className="avatar-stack">
+                {assignees.slice(0, 3).map((p) => (
+                  <Avatar key={p.id} profile={p} size="sm" />
+                ))}
+              </span>
+            )}
+            {task.is_pool && !isDone && <span className="tag pool">Pool</span>}
+            {!isDone && due && <span className={`tag ${ds === 'today' ? 'today' : ds === 'overdue' ? 'overdue' : ''}`}>{dueLabelShort(task.due_kind, task.due_date)}</span>}
+            {settings.priorities_enabled && task.priority === 'urgent' && <span className="tag urgent">Dringend</span>}
+            {settings.priorities_enabled && task.priority === 'important' && <span className="tag important">Wichtig</span>}
+          </div>
+        )}
         {!compact && task.description && <div className="task-desc">{task.description}</div>}
         {!compact && (
         <div className="task-meta">
