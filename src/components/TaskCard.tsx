@@ -48,7 +48,7 @@ export function TaskCard({ task, onEdit, compact = false, showHistory = false, s
   const completer = profileById(task.completed_by)
 
   return (
-    <div className="task-row">
+    <div className={`task-row ${task.status === 'archived' ? 'archived' : ''}`}>
       <button
         className={`check ${isDone ? 'done' : ''}`}
         onClick={onCheck}
@@ -108,6 +108,7 @@ export function TaskCard({ task, onEdit, compact = false, showHistory = false, s
         {(isDone || showHistory) && task.completed_at && (
           <div className="task-desc small">
             Erledigt von {completer?.display_name ?? 'unbekannt'} am {formatDateTime(task.completed_at)}
+            {task.status === 'archived' ? ' · archiviert' : ''}
           </div>
         )}
         {compact && showClaim && canClaim && (

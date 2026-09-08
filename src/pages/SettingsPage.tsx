@@ -15,6 +15,13 @@ const ACTION_LABEL: Record<string, string> = {
   updated: 'hat bearbeitet',
   deleted: 'hat gelöscht',
   archived: 'hat archiviert',
+  completed: 'hat erledigt',
+  assigned: 'hat zugewiesen',
+  moved_to_pool: 'hat in den Pool gelegt',
+  taken_from_pool: 'hat übernommen',
+  priority_changed: 'hat die Priorität geändert',
+  due_date_changed: 'hat die Fälligkeit geändert',
+  edited: 'hat bearbeitet',
 }
 
 export function SettingsPage() {

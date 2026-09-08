@@ -1804,3 +1804,51 @@ h2 {
     grid-template-columns: repeat(4, 1fr);
   }
 }
+
+/* ---------- Verlauf / Archiv ---------- */
+.timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-left: 4px;
+  border-left: 2px solid var(--line);
+  margin-left: 12px;
+}
+
+.tl-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 6px 0 6px 10px;
+  position: relative;
+  font-size: 14px;
+}
+
+.tl-icon {
+  position: absolute;
+  left: -15px;
+  top: 8px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 2px solid var(--sage-soft);
+  color: var(--sage-deep);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tl-row > span:last-child {
+  margin-left: 14px;
+}
+
+.task-row.archived {
+  opacity: 0.6;
+}
+
+.chip.active.quiet {
+  background: var(--prio-none-bg);
+  border-color: var(--prio-none-bg);
+  color: var(--ink);
+}

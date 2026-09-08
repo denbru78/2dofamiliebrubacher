@@ -53,7 +53,7 @@ interface StoreValue {
   signIn: (email: string, password: string) => Promise<string | null>
   signOut: () => Promise<void>
   createTask: (input: TaskInput) => Promise<string | null>
-  updateTask: (id: string, input: TaskInput) => Promise<string | null>
+  updateTask: (id: string, input: TaskInput, scope?: 'single' | 'series') => Promise<string | null>
   deleteTask: (id: string, mode?: 'single' | 'series') => Promise<string | null>
   completeTask: (id: string) => Promise<string | null>
   reopenTask: (id: string) => Promise<string | null>
@@ -106,6 +106,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const toastId = useRef(0)
   const unlockingRef = useRef(false)
   const attemptedRef = useRef<Set<string>>(new Set())
+  const archivedRef = useRef(false)
 
   const toast = useCallback((text: string, kind: ToastMsg['kind'] = 'success', action?: ToastAction) => {
     const id = ++toastId.current
@@ -163,10 +164,20 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const ps = (pRes.data ?? []) as Profile[]
       const me = ps.find((p) => p.id === userId) ?? null
       setAllProfiles(ps)
+      let taskRows = (tRes.data ?? []) as Task[]
+      // Erledigt seit 30 Tagen → automatisch archivieren (einmal pro Sitzung, nur Eltern)
+      if (me?.role === 'admin' && !archivedRef.current) {
+        archivedRef.current = true
+        const { data: n } = await supabase.rpc('archive_old_tasks')
+        if (typeof n === 'number' && n > 0) {
+          const again = await supabase.from('tasks').select('*').order('created_at', { ascending: false }).limit(2000)
+          if (!again.error) taskRows = (again.data ?? []) as Task[]
+        }
+      }
       setProfile(me)
       const s = (sRes.data ?? [])[0] as Settings | undefined
       setSettings(s ? { ...DEFAULT_SETTINGS, ...s } : { ...DEFAULT_SETTINGS, family_id: me?.family_id ?? '' })
-      setTasks((tRes.data ?? []) as Task[])
+      setTasks(taskRows)
       setActivities((aRes.data ?? []) as Activity[])
       setAchievements((achRes.data ?? []) as Achievement[])
       setAllCategories((cRes.data ?? []) as Category[])
@@ -253,16 +264,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const profileById = useCallback((id: string | null | undefined) => allProfiles.find((p) => p.id === id), [allProfiles])
 
-  const logActivity = useCallback(
-    async (task_id: string | null, action: string, task_title: string) => {
-      if (!profile) return
-      const row: Omit<Activity, 'id' | 'created_at'> = { family_id: profile.family_id, task_id, actor_id: profile.id, action, task_title }
-      const { data } = await supabase.from('task_activity').insert(row).select('*').single()
-      if (data) setActivities((a) => [data as Activity, ...a])
-    },
-    [profile],
-  )
-
   const applyTask = useCallback((t: Task) => {
     setTasks((all) => {
       const idx = all.findIndex((x) => x.id === t.id)
@@ -327,26 +328,25 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       if (error) return errMsg(error)
       const t = data as Task
       applyTask(t)
-      await logActivity(t.id, 'created', t.title)
       return null
     },
-    [profile, inputToRow, applyTask, logActivity],
+    [profile, inputToRow, applyTask],
   )
 
   const updateTask = useCallback(
-    async (id: string, input: TaskInput) => {
+    async (id: string, input: TaskInput, scope: 'single' | 'series' = 'series') => {
       if (!input.title.trim()) return 'Bitte einen Titel eingeben.'
       const old = tasks.find((t) => t.id === id)
       const row = inputToRow(input)
-      // Wenn eine Pool-Aufgabe jemandem zugewiesen wird (oder umgekehrt), Status anpassen
       let status = old?.status ?? 'open'
       if (status === 'claimed' && row.is_pool) status = 'open'
-      const { task, error } = await patchTask(id, { ...row, status })
+      // Serie: Vorlage neu aufbauen lassen (Folgeaufgaben übernehmen die Änderung); Einzelfall: Vorlage bleibt
+      const seriesPatch = scope === 'series' && row.recurrence !== 'none' ? { series_template: null } : {}
+      const { task, error } = await patchTask(id, { ...row, status, ...seriesPatch })
       if (error) return error
-      if (task) await logActivity(task.id, 'updated', task.title)
-      return null
+            return null
     },
-    [tasks, inputToRow, patchTask, logActivity],
+    [tasks, inputToRow, patchTask],
   )
 
   const deleteTask = useCallback(
@@ -379,10 +379,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const { error } = await supabase.from('tasks').delete().eq('id', id)
       if (error) return errMsg(error)
       setTasks((all) => all.filter((t) => t.id !== id))
-      await logActivity(null, 'deleted', old?.title ?? '')
+      window.setTimeout(() => reload(), 500)
       return null
     },
-    [profile, tasks, logActivity, applyTask],
+    [profile, tasks, applyTask, reload],
   )
 
   const completeTask = useCallback(
@@ -396,11 +396,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             void reopenTaskRef.current(id)
           },
         })
-        await logActivity(task.id, 'done', task.title)
+        window.setTimeout(() => reload(), 800) // Folgeaufgabe + Historie vom Server holen
       }
       return null
     },
-    [patchTask, logActivity, toast],
+    [patchTask, toast],
   )
 
   const reopenTask = useCallback(
@@ -411,11 +411,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       if (error) return error
       if (task) {
         toast('Wieder geöffnet', 'info')
-        await logActivity(task.id, 'reopened', task.title)
       }
       return null
     },
-    [tasks, profile, patchTask, logActivity, toast],
+    [tasks, profile, patchTask, toast],
   )
   const reopenTaskRef = useRef(reopenTask)
   reopenTaskRef.current = reopenTask
@@ -427,11 +426,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       if (error) return error
       if (task) {
         toast('Übernommen – viel Erfolg!', 'info')
-        await logActivity(task.id, 'claimed', task.title)
       }
       return null
     },
-    [profile, patchTask, logActivity, toast],
+    [profile, patchTask, toast],
   )
 
   const releaseTask = useCallback(
@@ -440,21 +438,19 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       if (error) return error
       if (task) {
         toast('Zurück im Familien-Pool', 'info')
-        await logActivity(task.id, 'released', task.title)
       }
       return null
     },
-    [patchTask, logActivity, toast],
+    [patchTask, toast],
   )
 
   const archiveTask = useCallback(
     async (id: string) => {
       const { task, error } = await patchTask(id, { status: 'archived' })
       if (error) return error
-      if (task) await logActivity(task.id, 'archived', task.title)
-      return null
+            return null
     },
-    [patchTask, logActivity],
+    [patchTask],
   )
 
   const updateProfile = useCallback(

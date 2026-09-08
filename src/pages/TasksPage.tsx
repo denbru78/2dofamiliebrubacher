@@ -17,7 +17,7 @@ interface Props {
   onEdit: (t: Task) => void
 }
 
-type Scope = 'all' | 'mine' | 'pool' | 'done'
+type Scope = 'all' | 'mine' | 'pool' | 'done' | 'archive'
 
 /** Sortierung: überfällig → dringend → heute → bald fällig → ohne Termin */
 function rank(t: Task, prio: boolean): number {
@@ -38,7 +38,7 @@ export function TasksPage({ personFilter, setPersonFilter, urgentOnly, setUrgent
 
   // Übergabe von der Startseite: Person oder Pool
   const scope: Scope = personFilter === 'pool' ? 'pool' : profile && personFilter === profile.id && scopeState !== 'done' ? 'mine' : scopeState
-  const showDone = scope === 'done'
+  const showDone = scope === 'done' || scope === 'archive'
   const person = personFilter === 'all' || personFilter === 'pool' ? 'all' : personFilter
 
   const chooseScope = (s: Scope) => {
@@ -46,7 +46,7 @@ export function TasksPage({ personFilter, setPersonFilter, urgentOnly, setUrgent
     if (s === 'pool') setPersonFilter('pool')
     else if (s === 'mine' && profile) setPersonFilter(profile.id)
     else setPersonFilter('all')
-    if (s === 'done') setUrgentOnly(false)
+    if (s === 'done' || s === 'archive') setUrgentOnly(false)
   }
 
   const choosePerson = (id: string) => {
@@ -63,7 +63,7 @@ export function TasksPage({ personFilter, setPersonFilter, urgentOnly, setUrgent
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
-    let list = tasks.filter((t) => (showDone ? t.status === 'done' || t.status === 'archived' : t.status === 'open' || t.status === 'claimed'))
+    let list = tasks.filter((t) => (scope === 'archive' ? t.status === 'archived' : scope === 'done' ? t.status === 'done' : t.status === 'open' || t.status === 'claimed'))
     if (scope === 'pool') list = list.filter((t) => t.is_pool)
     if (person !== 'all') list = list.filter((t) => t.assignee_ids.includes(person))
     if (urgentOnly && !showDone) list = list.filter((t) => isImportantNow(t, settings.priorities_enabled))
@@ -94,6 +94,7 @@ export function TasksPage({ personFilter, setPersonFilter, urgentOnly, setUrgent
     { key: 'mine', label: 'Meine' },
     { key: 'pool', label: 'Pool' },
     { key: 'done', label: 'Erledigt' },
+    { key: 'archive', label: 'Archiv' },
   ]
 
   return (
@@ -102,7 +103,7 @@ export function TasksPage({ personFilter, setPersonFilter, urgentOnly, setUrgent
         <div>
           <h1>Alle Aufgaben</h1>
           <p className="subtitle">
-            {filtered.length} {showDone ? 'erledigt' : 'offen'}
+            {filtered.length} {scope === 'archive' ? 'archiviert' : showDone ? 'erledigt' : 'offen'}
             {person !== 'all' ? ` · ${profileById(person)?.display_name ?? ''}` : ''}
             {category !== 'all' ? ` · ${category}` : ''}
           </p>
@@ -130,7 +131,7 @@ export function TasksPage({ personFilter, setPersonFilter, urgentOnly, setUrgent
 
       <div className="chips">
         {scopeChips.map((c) => (
-          <button key={c.key} className={`chip ${scope === c.key ? (c.key === 'pool' ? 'active sage' : 'active') : ''}`} onClick={() => chooseScope(c.key)}>
+          <button key={c.key} className={`chip ${scope === c.key ? (c.key === 'pool' ? 'active sage' : c.key === 'archive' ? 'active quiet' : 'active') : ''}`} onClick={() => chooseScope(c.key)}>
             {c.label}
           </button>
         ))}
@@ -182,7 +183,7 @@ export function TasksPage({ personFilter, setPersonFilter, urgentOnly, setUrgent
             <div className="empty-icon">
               <AppIcon name={showDone ? 'book' : 'balloon'} size={30} />
             </div>
-            {showDone ? 'Noch nichts Erledigtes mit diesen Filtern.' : 'Keine offenen Aufgaben mit diesen Filtern.'}
+            {scope === 'archive' ? 'Das Archiv ist leer. Erledigte Aufgaben wandern nach 30 Tagen automatisch hierher.' : showDone ? 'Noch nichts Erledigtes mit diesen Filtern.' : 'Keine offenen Aufgaben mit diesen Filtern.'}
           </div>
         ) : (
           <div className="task-list">

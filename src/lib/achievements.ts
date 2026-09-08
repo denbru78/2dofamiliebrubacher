@@ -121,7 +121,7 @@ export function computeNewUnlocks(
   for (const p of profiles) {
     const mine = doneTasks.filter((t) => t.completed_by === p.id)
     const byCat = (name: string) => mine.filter((t) => t.category === name).length
-    const claimed = activities.filter((a) => a.actor_id === p.id && a.action === 'claimed').length
+    const claimed = activities.filter((a) => a.actor_id === p.id && (a.action === 'claimed' || a.action === 'taken_from_pool')).length
     const checks: [string, boolean][] = [
       ['first_done', mine.length >= 1],
       ['five_done', mine.length >= 5],

@@ -70,6 +70,7 @@ export function TaskForm({ task, onClose, onGoToTasks }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [deleteStep, setDeleteStep] = useState<0 | 1>(0)
   const [savedTitle, setSavedTitle] = useState<string | null>(null)
+  const [askScope, setAskScope] = useState<TaskInput | null>(null)
   const titleRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -119,10 +120,20 @@ export function TaskForm({ task, onClose, onGoToTasks }: Props) {
       titleRef.current?.focus()
       return
     }
+    const data = buildInput()
+    // Wiederkehrende Aufgabe bearbeiten: nachfragen, ob nur diese oder die ganze Serie
+    const ruleChanged = task && (data.recurrence !== task.recurrence || data.recurrence_interval !== (task.recurrence_interval ?? 1))
+    if (task && task.recurrence !== 'none' && data.recurrence !== 'none' && !ruleChanged && !isDoneTask) {
+      setAskScope(data)
+      return
+    }
+    await persist(data, 'series')
+  }
+
+  const persist = async (data: TaskInput, scope: 'single' | 'series') => {
     setSaving(true)
     setError(null)
-    const data = buildInput()
-    const err = task ? await updateTask(task.id, data) : await createTask(data)
+    const err = task ? await updateTask(task.id, data, scope) : await createTask(data)
     setSaving(false)
     if (err) {
       setError(err)
@@ -171,9 +182,31 @@ export function TaskForm({ task, onClose, onGoToTasks }: Props) {
     onClose()
   }
 
+  const isDoneTask = !!task && (task.status === 'done' || task.status === 'archived')
   const isPool = input.assignee_ids.length === 0 && whoMode !== 'multi'
   const hasDate = input.due_kind !== 'none' && input.due_kind !== 'someday' && (input.due_kind !== 'date' || !!input.due_date)
   const showN = recChoice === 'weeks_n' || recChoice === 'months_n'
+
+  if (askScope) {
+    return (
+      <div className="sheet-backdrop" onClick={() => setAskScope(null)}>
+        <div className="sheet" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+          <div className="sheet-grab" />
+          <h2 style={{ marginBottom: 6 }}>Wiederkehrende Aufgabe</h2>
+          <p className="muted" style={{ margin: '0 0 16px' }}>Soll die Änderung nur für diese Aufgabe gelten oder auch für alle zukünftigen Folgeaufgaben?</p>
+          <button className="btn secondary block" style={{ marginBottom: 10 }} disabled={saving} onClick={() => { const d = askScope; setAskScope(null); void persist(d, 'single') }}>
+            Nur diese Aufgabe ändern
+          </button>
+          <button className="btn block" style={{ marginBottom: 10 }} disabled={saving} onClick={() => { const d = askScope; setAskScope(null); void persist(d, 'series') }}>
+            Diese und alle zukünftigen ändern
+          </button>
+          <button className="btn ghost block" onClick={() => setAskScope(null)}>
+            Abbrechen
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   // ---- Erfolgsschritt nach dem Speichern ----------------------------------
   if (savedTitle !== null) {

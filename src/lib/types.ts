@@ -66,6 +66,11 @@ export interface Task {
   recurrence_interval: number
   reminder_type: ReminderType
   reminder_at: string | null
+  recurrence_enabled: boolean
+  series_id: string | null
+  parent_task_id: string | null
+  next_due_date: string | null
+  series_template: Record<string, unknown> | null
   created_by: string | null
   created_at: string
   updated_at: string
@@ -80,6 +85,7 @@ export interface Activity {
   actor_id: string | null
   action: string
   task_title: string | null
+  metadata: Record<string, unknown> | null
   created_at: string
 }
 

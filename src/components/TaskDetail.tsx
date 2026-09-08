@@ -8,6 +8,7 @@ import { IconX } from './Icons'
 import { AppIcon } from './AppIcon'
 import { reminderLabel } from '../lib/reminders'
 import { openWhatsApp } from '../lib/whatsapp'
+import { TaskHistory } from './TaskHistory'
 
 interface Props {
   task: Task
@@ -23,7 +24,7 @@ const STATUS_LABEL: Record<Task['status'], string> = {
 }
 
 export function TaskDetail({ task, onClose, onEdit }: Props) {
-  const { profile, isAdmin, settings, profileById, categoryIcon, completeTask, reopenTask, claimTask, releaseTask, deleteTask, toast } = useStore()
+  const { profile, isAdmin, settings, profileById, categoryIcon, completeTask, reopenTask, claimTask, releaseTask, deleteTask, archiveTask, toast } = useStore()
   const isDone = task.status === 'done' || task.status === 'archived'
   const isMine = !!profile && task.assignee_ids.includes(profile.id)
   const canComplete = !isDone && (isAdmin || isMine)
@@ -126,8 +127,9 @@ export function TaskDetail({ task, onClose, onEdit }: Props) {
           {task.recurrence !== 'none' && (
             <div className="detail-row">
               <span className="detail-label">Wiederholung</span>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
               <AppIcon name="repeat" size={16} /> {recurrenceLabel(task.recurrence, task.recurrence_interval)}
+              {task.next_due_date && !isDone && <span className="muted small">· nächste am {new Date(`${task.next_due_date}T12:00:00`).toLocaleDateString('de-DE')}</span>}
             </span>
             </div>
           )}
@@ -149,7 +151,10 @@ export function TaskDetail({ task, onClose, onEdit }: Props) {
           )}
         </div>
 
-        <div className="detail-actions">
+        <h2 style={{ fontSize: 16, margin: '4px 0 8px' }}>Verlauf</h2>
+        <TaskHistory task={task} />
+
+        <div className="detail-actions" style={{ marginTop: 16 }}>
           {canComplete && (
             <button className="btn block" onClick={() => run(() => completeTask(task.id))}>
               Erledigen
@@ -184,6 +189,11 @@ export function TaskDetail({ task, onClose, onEdit }: Props) {
               <button className="btn sm secondary" onClick={() => onEdit(task)}>
                 Bearbeiten
               </button>
+              {task.status === 'done' && (
+                <button className="btn sm secondary" onClick={() => run(() => archiveTask(task.id))}>
+                  Archivieren
+                </button>
+              )}
               {!task.is_pool && !isDone && (
                 <button className="btn sm secondary" onClick={() => run(() => releaseTask(task.id))}>
                   Zurück in den Pool
