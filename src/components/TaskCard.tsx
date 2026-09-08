@@ -14,7 +14,7 @@ interface Props {
 }
 
 export function TaskCard({ task, onEdit, compact = false, showHistory = false, showClaim = false }: Props) {
-  const { profile, isAdmin, settings, profileById, categoryIcon, completeTask, reopenTask, claimTask, releaseTask, toast } = useStore()
+  const { profile, isAdmin, settings, profileById, categoryIcon, completeTask, reopenTask, claimTask, releaseTask, openTask, toast } = useStore()
   const isDone = task.status === 'done' || task.status === 'archived'
   const isMine = !!profile && task.assignee_ids.includes(profile.id)
   const canComplete = !isDone && (isAdmin || isMine)
@@ -59,7 +59,9 @@ export function TaskCard({ task, onEdit, compact = false, showHistory = false, s
           <span className="task-cat" aria-hidden="true">
             {categoryIcon(task.category)}
           </span>
-          <span className={`task-title ${isDone ? 'done' : ''}`}>{task.title}</span>
+          <button className={`task-title ${isDone ? 'done' : ''}`} onClick={() => openTask(task.id)}>
+            {task.title}
+          </button>
           {isAdmin && onEdit && (
             <button className="icon-btn" onClick={() => onEdit(task)} aria-label="Aufgabe bearbeiten" style={{ marginLeft: 'auto' }}>
               <IconEdit />

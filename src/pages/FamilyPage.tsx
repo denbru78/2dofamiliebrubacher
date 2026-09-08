@@ -4,14 +4,14 @@ import type { Profile } from '../lib/types'
 import { useStore } from '../lib/store'
 import { Avatar } from '../components/Avatar'
 import { MemberEditSheet } from '../components/MemberEditSheet'
-import { IconChevron, IconEdit } from '../components/Icons'
+import { IconChevron } from '../components/Icons'
 
 interface Props {
   go: (v: View, personFilter?: string) => void
 }
 
 export function FamilyPage({ go }: Props) {
-  const { allProfiles, tasks, isAdmin, achievements, settings } = useStore()
+  const { allProfiles, tasks, isAdmin, achievements, settings, familyName } = useStore()
   const [editing, setEditing] = useState<Profile | null>(null)
   const open = useMemo(() => tasks.filter((t) => t.status === 'open' || t.status === 'claimed'), [tasks])
   const done = useMemo(() => tasks.filter((t) => t.status === 'done' || t.status === 'archived'), [tasks])
@@ -21,35 +21,33 @@ export function FamilyPage({ go }: Props) {
     <div className="page">
       <div className="page-head">
         <div>
-          <h1>Familie</h1>
+          <h1>{familyName}</h1>
           <p className="subtitle">
-            {done.length} Aufgaben gemeinsam geschafft · {achievements.length} Erfolge
+            {done.length} Aufgaben gemeinsam geschafft{settings.achievements_enabled ? ` · ${achievements.length} Erfolge` : ''}
           </p>
         </div>
       </div>
 
-      <div className="card">
-        {isAdmin && <div className="muted small" style={{ marginBottom: 8 }}>Als Elternteil kannst du Name, Avatar und Rolle aller Mitglieder ändern (Stift).</div>}
+      <div className="member-grid">
         {allProfiles.map((p) => {
           const mineOpen = open.filter((t) => t.assignee_ids.includes(p.id)).length
           const mineDone = done.filter((t) => t.completed_by === p.id).length
+          const inactive = p.active === false
           return (
-            <div key={p.id} className="member-row">
-              <button className="member-main" onClick={() => go('tasks', p.id)}>
-                <Avatar profile={p} size="md" />
-                <span>
-                  <span style={{ fontWeight: 700 }}>{p.display_name}</span>
-                  <span className="muted small" style={{ display: 'block' }}>
-                    {p.active === false ? 'Deaktiviert · ' : ''}{p.role === 'admin' ? 'Elternteil' : 'Mitglied'} · {mineOpen} offen · {mineDone} erledigt
-                  </span>
+            <div key={p.id} className={`member-card ${inactive ? 'inactive' : ''}`}>
+              <button className="member-card-main" onClick={() => go('tasks', p.id)}>
+                <Avatar profile={p} size="xl" />
+                <span className="member-name">{p.display_name}</span>
+                <span className="member-open">
+                  {mineOpen} {mineOpen === 1 ? 'Aufgabe' : 'Aufgaben'} offen
                 </span>
-                <span className="muted" style={{ marginLeft: 'auto' }}>
-                  <IconChevron size={16} />
+                <span className="muted small">
+                  {inactive ? 'Deaktiviert' : p.role === 'admin' ? 'Elternteil' : 'Mitglied'} · {mineDone} erledigt
                 </span>
               </button>
               {isAdmin && (
-                <button className="icon-btn" onClick={() => setEditing(p)} aria-label={`${p.display_name} bearbeiten`}>
-                  <IconEdit />
+                <button className="btn sm secondary block" onClick={() => setEditing(p)}>
+                  Mitglied verwalten
                 </button>
               )}
             </div>
@@ -70,17 +68,23 @@ export function FamilyPage({ go }: Props) {
       </button>
 
       {settings.achievements_enabled && (
-      <button className="card card-btn" onClick={() => go('achievements')}>
-        <div className="card-head" style={{ marginBottom: 0 }}>
-          <div>
-            <h2>Erfolge</h2>
-            <span className="muted small">{achievements.length} freigeschaltet</span>
+        <button className="card card-btn" onClick={() => go('achievements')}>
+          <div className="card-head" style={{ marginBottom: 0 }}>
+            <div>
+              <h2>Erfolge</h2>
+              <span className="muted small">{achievements.length} freigeschaltet</span>
+            </div>
+            <span className="muted">
+              <IconChevron size={16} />
+            </span>
           </div>
-          <span className="muted">
-            <IconChevron size={16} />
-          </span>
+        </button>
+      )}
+
+      {isAdmin && (
+        <div className="muted small" style={{ padding: '4px 4px 0' }}>
+          Neue Mitglieder legst du in Supabase unter Authentication → Users an (siehe README). Sie erscheinen hier automatisch.
         </div>
-      </button>
       )}
 
       {editing && <MemberEditSheet member={editing} onClose={() => setEditing(null)} />}

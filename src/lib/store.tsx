@@ -23,6 +23,11 @@ interface StoreValue {
   session: Session | null
   authLoading: boolean
   profile: Profile | null
+  familyName: string
+  updateFamilyName: (name: string) => Promise<string | null>
+  detailTaskId: string | null
+  openTask: (id: string) => void
+  closeTask: () => void
   profiles: Profile[]
   allProfiles: Profile[]
   settings: Settings
@@ -84,6 +89,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const profiles = useMemo(() => allProfiles.filter((p) => p.active !== false), [allProfiles])
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS)
   const [allCategories, setAllCategories] = useState<Category[]>([])
+  const [familyName, setFamilyName] = useState('Unsere Familie')
+  const [detailTaskId, setDetailTaskId] = useState<string | null>(null)
   const [tasks, setTasks] = useState<Task[]>([])
   const [activities, setActivities] = useState<Activity[]>([])
   const [achievements, setAchievements] = useState<Achievement[]>([])
@@ -134,6 +141,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         supabase.from('achievements').select('*'),
         supabase.from('categories').select('*').order('sort_order').order('name'),
       ])
+      const fRes = await supabase.from('families').select('name').limit(1)
+      if (!fRes.error && fRes.data && fRes.data[0]) setFamilyName((fRes.data[0] as { name: string }).name)
       if (pRes.error) throw pRes.error
       if (sRes.error) throw sRes.error
       if (tRes.error) throw tRes.error
@@ -524,6 +533,22 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [allCategories],
   )
 
+  const updateFamilyName = useCallback(
+    async (name: string) => {
+      if (!profile) return 'Nicht angemeldet.'
+      const n = name.trim()
+      if (!n) return 'Bitte einen Namen eingeben.'
+      const { error } = await supabase.from('families').update({ name: n }).eq('id', profile.family_id)
+      if (error) return errMsg(error)
+      setFamilyName(n)
+      return null
+    },
+    [profile],
+  )
+
+  const openTask = useCallback((id: string) => setDetailTaskId(id), [])
+  const closeTask = useCallback(() => setDetailTaskId(null), [])
+
   const updateSettings = useCallback(
     async (patch: Partial<Pick<Settings, 'priorities_enabled' | 'weekly_goal' | 'kids_can_claim_pool' | 'achievements_enabled'>>) => {
       if (!profile) return 'Nicht angemeldet.'
@@ -553,6 +578,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     session,
     authLoading,
     profile,
+    familyName,
+    updateFamilyName,
+    detailTaskId,
+    openTask,
+    closeTask,
     profiles,
     allProfiles,
     settings,

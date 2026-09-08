@@ -17,13 +17,15 @@ const ACTION_LABEL: Record<string, string> = {
 }
 
 export function SettingsPage() {
-  const { profile, isAdmin, settings, activities, profileById, updateProfile, updateSettings, signOut, toast } = useStore()
+  const { profile, isAdmin, settings, activities, profileById, updateProfile, updateSettings, familyName, updateFamilyName, signOut, toast } = useStore()
   const [name, setName] = useState(profile?.display_name ?? '')
   const [goal, setGoal] = useState(String(settings.weekly_goal))
+  const [fam, setFam] = useState(familyName)
   const [busy, setBusy] = useState(false)
 
   useEffect(() => setName(profile?.display_name ?? ''), [profile?.display_name])
   useEffect(() => setGoal(String(settings.weekly_goal)), [settings.weekly_goal])
+  useEffect(() => setFam(familyName), [familyName])
 
   if (!profile) return null
 
@@ -44,6 +46,26 @@ export function SettingsPage() {
   const toggle = async (key: 'priorities_enabled' | 'kids_can_claim_pool' | 'achievements_enabled') => {
     const err = await updateSettings({ [key]: !settings[key] })
     if (err) toast(err, 'error')
+  }
+
+  const saveFam = async () => {
+    if (!fam.trim() || fam.trim() === familyName) return
+    const err = await updateFamilyName(fam)
+    toast(err ?? 'Familienname gespeichert', err ? 'error' : 'info')
+  }
+
+  const share = async () => {
+    const text = `Unsere Familien-Liste: ${window.location.origin}\nAnmelden mit deiner Familien-E-Mail (z. B. name@familie.local) und dem Passwort von Mama oder Papa. Auf dem Handy am besten „Zum Home-Bildschirm“ hinzufügen.`
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: 'Familien-Liste', text })
+      } else {
+        await navigator.clipboard.writeText(text)
+        toast('Einladungstext kopiert', 'info')
+      }
+    } catch {
+      /* abgebrochen */
+    }
   }
 
   const saveGoal = async () => {
@@ -84,7 +106,16 @@ export function SettingsPage() {
 
       {isAdmin && (
         <div className="card">
-          <h2 style={{ marginBottom: 6 }}>Familie</h2>
+          <h2 style={{ marginBottom: 10 }}>Familie</h2>
+          <div className="field">
+            <label htmlFor="famname">Familienname</label>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input id="famname" className="input" value={fam} onChange={(e) => setFam(e.target.value)} maxLength={40} />
+              <button className="btn" onClick={saveFam} disabled={!fam.trim() || fam.trim() === familyName}>
+                Speichern
+              </button>
+            </div>
+          </div>
           <div className="toggle-row">
             <div>
               <div style={{ fontWeight: 600 }}>Prioritäten verwenden</div>
@@ -113,9 +144,24 @@ export function SettingsPage() {
             </div>
             <input className="input" style={{ width: 84, textAlign: 'center' }} inputMode="numeric" value={goal} onChange={(e) => setGoal(e.target.value)} onBlur={saveGoal} aria-label="Wochenziel" />
           </div>
-          <div className="muted small" style={{ marginTop: 10 }}>Namen und Avatare der anderen Mitglieder änderst du unter „Familie“.</div>
+          <div className="task-actions" style={{ marginTop: 12 }}>
+            <button className="btn sm secondary" onClick={share}>
+              Einladung teilen
+            </button>
+          </div>
+          <div className="muted small" style={{ marginTop: 10 }}>Mitglieder verwalten (Name, Avatar, Rolle, deaktivieren): unter „Familie“ → „Mitglied verwalten“. Neue Logins legst du in Supabase an.</div>
         </div>
       )}
+
+      <div className="card">
+        <div className="toggle-row" style={{ paddingTop: 0 }}>
+          <div>
+            <div style={{ fontWeight: 600 }}>Benachrichtigungen</div>
+            <div className="muted small">Kommt in einer späteren Version (neue Aufgabe, heute fällig, Wochenziel erreicht).</div>
+          </div>
+          <button className="switch" disabled aria-label="Benachrichtigungen (noch nicht verfügbar)" style={{ opacity: 0.4 }} />
+        </div>
+      </div>
 
       {isAdmin && (
         <div className="card">

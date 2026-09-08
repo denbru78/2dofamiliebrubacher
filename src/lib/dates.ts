@@ -137,3 +137,8 @@ export function nextDueDate(dueDate: string | null, rec: Recurrence, interval: n
   }
   return toISODate(d)
 }
+
+/** Wochenstatistik: erledigte Aufgaben pro Woche (Montag als Schlüssel), n Wochen zurück */
+export function weekKey(d: Date): string {
+  return toISODate(startOfWeek(d))
+}

@@ -4,6 +4,7 @@ import type { Task } from './lib/types'
 import { BottomNav } from './components/BottomNav'
 import { Toasts } from './components/Toasts'
 import { TaskForm } from './components/TaskForm'
+import { TaskDetail } from './components/TaskDetail'
 import { IconPlus } from './components/Icons'
 import { LoginPage } from './pages/LoginPage'
 import { StartPage } from './pages/StartPage'
@@ -16,7 +17,7 @@ import { SettingsPage } from './pages/SettingsPage'
 export type View = 'start' | 'tasks' | 'pool' | 'achievements' | 'family' | 'settings'
 
 export default function App() {
-  const { session, authLoading, profile, dataLoading, dataError, isAdmin, reload, signOut } = useStore()
+  const { session, authLoading, profile, dataLoading, dataError, isAdmin, reload, signOut, tasks, detailTaskId, closeTask } = useStore()
   const [view, setView] = useState<View>('start')
   const [personFilter, setPersonFilter] = useState('all')
   const [urgentOnly, setUrgentOnly] = useState(false)
@@ -35,9 +36,11 @@ export default function App() {
     setFormOpen(true)
   }
   const openEdit = (t: Task) => {
+    closeTask()
     setEditing(t)
     setFormOpen(true)
   }
+  const detailTask = detailTaskId ? tasks.find((t) => t.id === detailTaskId) ?? null : null
   const closeForm = useCallback(() => {
     setFormOpen(false)
     setEditing(null)
@@ -118,6 +121,7 @@ export default function App() {
         </button>
       )}
       <BottomNav view={view} onChange={(v) => go(v)} />
+      {detailTask && !formOpen && <TaskDetail task={detailTask} onClose={closeTask} onEdit={openEdit} />}
       {formOpen && <TaskForm task={editing} onClose={closeForm} onGoToTasks={() => go('tasks', 'all')} />}
       <Toasts />
     </div>
