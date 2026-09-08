@@ -1853,3 +1853,32 @@ h2 {
   border-color: var(--prio-none-bg);
   color: var(--ink);
 }
+
+/* ---------- Filter ---------- */
+.filter-more-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 2px 0 12px;
+}
+
+.filter-card {
+  background: var(--surface-2);
+  box-shadow: none;
+}
+
+.chip.active.urgent {
+  background: var(--prio-urgent);
+  border-color: var(--prio-urgent);
+}
+
+.chip.active.important {
+  background: var(--prio-important);
+  border-color: var(--prio-important);
+}
+
+.chip.active.normal {
+  background: var(--prio-normal);
+  border-color: var(--prio-normal);
+}

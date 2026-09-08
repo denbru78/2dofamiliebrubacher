@@ -1,112 +1,121 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { Priority, Task } from '../lib/types'
 import { useStore } from '../lib/store'
 import { PRIORITIES, categoryShort } from '../lib/constants'
-import { dueState } from '../lib/dates'
 import { isImportantNow } from './StartPage'
 import { Avatar } from '../components/Avatar'
 import { TaskCard } from '../components/TaskCard'
 import { IconSearch, IconX } from '../components/Icons'
 import { AppIcon } from '../components/AppIcon'
+import {
+  DEFAULT_FILTERS,
+  DUE_FILTERS,
+  SORT_MODES,
+  loadFilters,
+  matchesDue,
+  matchesQuery,
+  saveFilters,
+  sortTasks,
+  type Scope,
+  type TaskFilters,
+} from '../lib/filters'
 
 interface Props {
-  personFilter: string // 'all' | 'pool' | profile id
+  personFilter: string // 'all' | 'pool' | profile id  (Einstieg von Startseite/Familie)
   setPersonFilter: (v: string) => void
   urgentOnly: boolean
   setUrgentOnly: (v: boolean) => void
   onEdit: (t: Task) => void
 }
 
-type Scope = 'all' | 'mine' | 'pool' | 'done' | 'archive'
-
-/** Sortierung: überfällig → dringend → heute → bald fällig → ohne Termin */
-function rank(t: Task, prio: boolean): number {
-  const ds = dueState(t.due_kind, t.due_date)
-  if (ds === 'overdue') return 0
-  if (prio && t.priority === 'urgent') return 1
-  if (ds === 'today') return 2
-  if (ds === 'tomorrow' || ds === 'soon' || ds === 'later') return 3
-  return 4
-}
-
 export function TasksPage({ personFilter, setPersonFilter, urgentOnly, setUrgentOnly, onEdit }: Props) {
   const { profile, tasks, profiles, settings, profileById, allCategories, categories } = useStore()
-  const [scopeState, setScope] = useState<Scope>('all')
-  const [category, setCategory] = useState('all')
-  const [priority, setPriority] = useState<'all' | Priority>('all')
-  const [query, setQuery] = useState('')
+  const [f, setF] = useState<TaskFilters>(() => loadFilters())
+  const [more, setMore] = useState(false)
 
-  // Übergabe von der Startseite: Person oder Pool
-  const scope: Scope = personFilter === 'pool' ? 'pool' : profile && personFilter === profile.id && scopeState !== 'done' ? 'mine' : scopeState
-  const showDone = scope === 'done' || scope === 'archive'
-  const person = personFilter === 'all' || personFilter === 'pool' ? 'all' : personFilter
+  // Einstieg von anderen Seiten (Avatar antippen, "Meine Aufgaben", "Heute wichtig", Pool)
+  useEffect(() => {
+    if (personFilter === 'pool') setF((x) => ({ ...x, scope: 'pool', persons: [] }))
+    else if (profile && personFilter === profile.id) setF((x) => ({ ...x, scope: 'mine', persons: [] }))
+    else if (personFilter !== 'all') setF((x) => ({ ...x, scope: 'open', persons: [personFilter] }))
+    if (urgentOnly) setF((x) => ({ ...x, urgentOnly: true }))
+    setPersonFilter('all')
+    setUrgentOnly(false)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [personFilter, urgentOnly])
 
-  const chooseScope = (s: Scope) => {
-    setScope(s)
-    if (s === 'pool') setPersonFilter('pool')
-    else if (s === 'mine' && profile) setPersonFilter(profile.id)
-    else setPersonFilter('all')
-    if (s === 'done' || s === 'archive') setUrgentOnly(false)
-  }
+  useEffect(() => saveFilters(f), [f])
 
-  const choosePerson = (id: string) => {
-    if (person === id) {
-      setPersonFilter('all')
-      if (scopeState === 'mine') setScope('all')
-      return
-    }
-    setPersonFilter(id)
-    if (scopeState === 'pool') setScope('all')
-  }
+  const set = <K extends keyof TaskFilters>(key: K, value: TaskFilters[K]) => setF((x) => ({ ...x, [key]: value }))
+  const toggleIn = (key: 'persons' | 'categories' | 'priorities', value: string, single = true) =>
+    setF((x) => {
+      const arr = x[key] as string[]
+      const next = arr.includes(value) ? arr.filter((v) => v !== value) : single ? [value] : [...arr, value]
+      return { ...x, [key]: next }
+    })
 
-  const catList = allCategories.length ? allCategories.slice().sort((a, b) => a.sort_order - b.sort_order) : categories
+  const doneView = f.scope === 'done' || f.scope === 'archive'
+  const catList = allCategories.length ? allCategories.filter((c) => c.is_active).sort((a, b) => a.sort_order - b.sort_order) : categories
 
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    let list = tasks.filter((t) => (scope === 'archive' ? t.status === 'archived' : scope === 'done' ? t.status === 'done' : t.status === 'open' || t.status === 'claimed'))
-    if (scope === 'pool') list = list.filter((t) => t.is_pool)
-    if (person !== 'all') list = list.filter((t) => t.assignee_ids.includes(person))
-    if (urgentOnly && !showDone) list = list.filter((t) => isImportantNow(t, settings.priorities_enabled))
-    if (category !== 'all') list = list.filter((t) => t.category === category)
-    if (settings.priorities_enabled && priority !== 'all') list = list.filter((t) => t.priority === priority)
-    if (q) {
-      list = list.filter((t) => {
-        const who = t.completed_by ? (profileById(t.completed_by)?.display_name ?? '') : ''
-        return t.title.toLowerCase().includes(q) || (t.description ?? '').toLowerCase().includes(q) || who.toLowerCase().includes(q)
-      })
+    let list = tasks
+    switch (f.scope) {
+      case 'all':
+        list = list.filter((t) => t.status !== 'archived')
+        break
+      case 'mine':
+        list = list.filter((t) => (t.status === 'open' || t.status === 'claimed') && !!profile && t.assignee_ids.includes(profile.id))
+        break
+      case 'pool':
+        list = list.filter((t) => (t.status === 'open' || t.status === 'claimed') && t.is_pool)
+        break
+      case 'done':
+        list = list.filter((t) => t.status === 'done')
+        break
+      case 'archive':
+        list = list.filter((t) => t.status === 'archived')
+        break
+      default:
+        list = list.filter((t) => t.status === 'open' || t.status === 'claimed')
     }
-    if (showDone) {
-      list.sort((a, b) => (b.completed_at ?? '').localeCompare(a.completed_at ?? ''))
-    } else {
-      const prio = settings.priorities_enabled
-      list.sort(
-        (a, b) =>
-          rank(a, prio) - rank(b, prio) ||
-          (a.due_date ?? '9999').localeCompare(b.due_date ?? '9999') ||
-          b.created_at.localeCompare(a.created_at),
-      )
+    if (f.persons.length) list = list.filter((t) => f.persons.some((p) => t.assignee_ids.includes(p)))
+    if (f.categories.length) list = list.filter((t) => f.categories.includes(t.category))
+    if (settings.priorities_enabled && f.priorities.length) list = list.filter((t) => f.priorities.includes(t.priority))
+    if (!doneView) {
+      if (f.urgentOnly) list = list.filter((t) => isImportantNow(t, settings.priorities_enabled))
+      list = list.filter((t) => matchesDue(t, f.due))
     }
-    return list
-  }, [tasks, showDone, scope, person, category, priority, query, urgentOnly, settings.priorities_enabled, profileById])
+    if (f.query) list = list.filter((t) => matchesQuery(t, f.query, [t.completed_by ? (profileById(t.completed_by)?.display_name ?? '') : '']))
+    return sortTasks(list, f.sort, settings.priorities_enabled, doneView)
+  }, [tasks, f, profile, settings.priorities_enabled, doneView, profileById])
 
   const scopeChips: { key: Scope; label: string }[] = [
     { key: 'all', label: 'Alle' },
     { key: 'mine', label: 'Meine' },
     { key: 'pool', label: 'Pool' },
+    { key: 'open', label: 'Offen' },
     { key: 'done', label: 'Erledigt' },
     { key: 'archive', label: 'Archiv' },
   ]
+
+  const extraActive =
+    (settings.priorities_enabled && f.priorities.length > 0) || f.due !== 'all' || f.sort !== 'default' || f.urgentOnly
+  const anyActive = extraActive || f.persons.length > 0 || f.categories.length > 0 || f.query !== '' || f.scope !== 'open'
+
+  const subtitle = [
+    `${filtered.length} ${f.scope === 'archive' ? 'archiviert' : f.scope === 'done' ? 'erledigt' : f.scope === 'all' ? 'Aufgaben' : 'offen'}`,
+    ...f.persons.map((p) => profileById(p)?.display_name ?? ''),
+    ...f.categories.map(categoryShort),
+  ]
+    .filter(Boolean)
+    .join(' · ')
 
   return (
     <div className="page">
       <div className="page-head">
         <div>
           <h1>Alle Aufgaben</h1>
-          <p className="subtitle">
-            {filtered.length} {scope === 'archive' ? 'archiviert' : showDone ? 'erledigt' : 'offen'}
-            {person !== 'all' ? ` · ${profileById(person)?.display_name ?? ''}` : ''}
-            {category !== 'all' ? ` · ${category}` : ''}
-          </p>
+          <p className="subtitle">{subtitle}</p>
         </div>
       </div>
 
@@ -117,73 +126,119 @@ export function TasksPage({ personFilter, setPersonFilter, urgentOnly, setUrgent
         <input
           className="input"
           style={{ paddingLeft: 42, paddingRight: 42 }}
-          placeholder="Suchen in Titel und Beschreibung"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Aufgaben durchsuchen"
+          value={f.query}
+          onChange={(e) => set('query', e.target.value)}
           type="search"
+          autoComplete="off"
         />
-        {query && (
-          <button className="icon-btn" style={{ position: 'absolute', right: 6, top: 6 }} onClick={() => setQuery('')} aria-label="Suche löschen">
+        {f.query && (
+          <button className="icon-btn" style={{ position: 'absolute', right: 6, top: 6 }} onClick={() => set('query', '')} aria-label="Suche löschen">
             <IconX />
           </button>
         )}
       </div>
 
+      {/* Status */}
       <div className="chips">
         {scopeChips.map((c) => (
-          <button key={c.key} className={`chip ${scope === c.key ? (c.key === 'pool' ? 'active sage' : c.key === 'archive' ? 'active quiet' : 'active') : ''}`} onClick={() => chooseScope(c.key)}>
+          <button
+            key={c.key}
+            className={`chip ${f.scope === c.key ? (c.key === 'pool' ? 'active sage' : c.key === 'archive' ? 'active quiet' : 'active') : ''}`}
+            onClick={() => set('scope', c.key)}
+          >
             {c.label}
           </button>
         ))}
-        {!showDone && (
-          <button className={`chip ${urgentOnly ? 'active' : ''}`} onClick={() => setUrgentOnly(!urgentOnly)}>
-            Heute wichtig
-          </button>
-        )}
       </div>
 
+      {/* Person */}
       <div className="chips">
         {profiles.map((p) => (
-          <button key={p.id} className={`chip ${person === p.id ? 'active' : ''}`} onClick={() => choosePerson(p.id)}>
+          <button key={p.id} className={`chip ${f.persons.includes(p.id) ? 'active' : ''}`} onClick={() => toggleIn('persons', p.id)}>
             <Avatar profile={p} size="sm" /> {p.display_name}
           </button>
         ))}
       </div>
 
+      {/* Kategorie */}
       <div className="chips">
-        <button className={`chip ${category === 'all' ? 'active' : ''}`} onClick={() => setCategory('all')}>
-          Alle Kategorien
-        </button>
         {catList.map((c) => (
-          <button key={c.id} className={`chip ${category === c.name ? 'active' : ''}`} onClick={() => setCategory(category === c.name ? 'all' : c.name)}>
+          <button key={c.id} className={`chip ${f.categories.includes(c.name) ? 'active' : ''}`} onClick={() => toggleIn('categories', c.name)}>
             <AppIcon name={c.icon} size={16} /> {categoryShort(c.name)}
           </button>
         ))}
-        {settings.priorities_enabled && (
-          <select
-            className="select chip"
-            style={{ minHeight: 38, padding: '6px 34px 6px 14px', width: 'auto' }}
-            value={priority}
-            onChange={(e) => setPriority(e.target.value as 'all' | Priority)}
-            aria-label="Priorität"
-          >
-            <option value="all">Alle Prioritäten</option>
-            {PRIORITIES.map((p) => (
-              <option key={p.value} value={p.value}>
-                {p.label}
-              </option>
-            ))}
-          </select>
+      </div>
+
+      {/* Mehr Filter */}
+      <div className="filter-more-row">
+        <button className={`chip ${more || extraActive ? 'active sage' : ''}`} onClick={() => setMore(!more)}>
+          <AppIcon name="tool" size={15} /> Mehr Filter{extraActive ? ' •' : ''}
+        </button>
+        {anyActive && (
+          <button className="link-btn" onClick={() => setF({ ...DEFAULT_FILTERS })}>
+            Zurücksetzen
+          </button>
         )}
       </div>
+
+      {more && (
+        <div className="card filter-card">
+          {!doneView && (
+            <div className="field">
+              <span className="label">Fälligkeit</span>
+              <div className="chips wrap">
+                {DUE_FILTERS.map((d) => (
+                  <button key={d.value} className={`chip ${f.due === d.value ? 'active' : ''}`} onClick={() => set('due', d.value)}>
+                    {d.label}
+                  </button>
+                ))}
+                <button className={`chip ${f.urgentOnly ? 'active' : ''}`} onClick={() => set('urgentOnly', !f.urgentOnly)}>
+                  Heute wichtig
+                </button>
+              </div>
+            </div>
+          )}
+          {settings.priorities_enabled && (
+            <div className="field">
+              <span className="label">Priorität</span>
+              <div className="chips wrap">
+                {PRIORITIES.slice()
+                  .reverse()
+                  .map((p) => (
+                    <button key={p.value} className={`chip ${f.priorities.includes(p.value) ? `active ${p.value}` : ''}`} onClick={() => toggleIn('priorities', p.value as Priority)}>
+                      {p.label}
+                    </button>
+                  ))}
+              </div>
+            </div>
+          )}
+          <div className="field" style={{ marginBottom: 0 }}>
+            <label htmlFor="sort">Sortierung</label>
+            <select id="sort" className="select" value={f.sort} onChange={(e) => set('sort', e.target.value as TaskFilters['sort'])}>
+              {SORT_MODES.map((s) => (
+                <option key={s.value} value={s.value}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      )}
 
       <div className="card">
         {filtered.length === 0 ? (
           <div className="empty">
             <div className="empty-icon">
-              <AppIcon name={showDone ? 'book' : 'balloon'} size={30} />
+              <AppIcon name={doneView ? 'book' : 'balloon'} size={30} />
             </div>
-            {scope === 'archive' ? 'Das Archiv ist leer. Erledigte Aufgaben wandern nach 30 Tagen automatisch hierher.' : showDone ? 'Noch nichts Erledigtes mit diesen Filtern.' : 'Keine offenen Aufgaben mit diesen Filtern.'}
+            {f.scope === 'archive'
+              ? 'Das Archiv ist leer. Erledigte Aufgaben wandern nach 30 Tagen automatisch hierher.'
+              : f.query
+                ? `Nichts gefunden für „${f.query}“.`
+                : doneView
+                  ? 'Noch nichts Erledigtes mit diesen Filtern.'
+                  : 'Keine Aufgaben mit diesen Filtern.'}
           </div>
         ) : (
           <div className="task-list">
