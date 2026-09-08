@@ -3,6 +3,7 @@ import type { Task } from '../lib/types'
 import { useStore } from '../lib/store'
 import { TaskCard } from '../components/TaskCard'
 import { IconBack } from '../components/Icons'
+import { AppIcon } from '../components/AppIcon'
 
 interface Props {
   onEdit: (t: Task) => void
@@ -27,7 +28,9 @@ export function PoolPage({ onEdit, onBack }: Props) {
       <div className="card">
         {pool.length === 0 ? (
           <div className="empty">
-            <div className="empty-emoji">🧺</div>
+            <div className="empty-icon">
+              <AppIcon name="basket" size={30} />
+            </div>
             Gerade ist nichts im Pool.
           </div>
         ) : (

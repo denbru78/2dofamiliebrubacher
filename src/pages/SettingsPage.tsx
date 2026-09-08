@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useStore } from '../lib/store'
 import { Avatar } from '../components/Avatar'
-import { AvatarPicker } from '../components/MemberEditSheet'
+import { AvatarPicker, ColorPicker } from '../components/MemberEditSheet'
+import { memberColorKey } from '../lib/colors'
 import { CategoryManager } from '../components/CategoryManager'
 import { formatDateTime } from '../lib/dates'
 
@@ -100,7 +101,17 @@ export function SettingsPage() {
         </div>
         <div className="field" style={{ marginBottom: 0 }}>
           <span className="label">Avatar</span>
-          <AvatarPicker value={profile.avatar} onPick={pickAvatar} />
+          <AvatarPicker value={profile.avatar} onPick={pickAvatar} name={profile.display_name} color={profile.color} />
+        </div>
+        <div className="field" style={{ marginBottom: 0, marginTop: 14 }}>
+          <span className="label">Meine Farbe</span>
+          <ColorPicker
+            value={memberColorKey(profile)}
+            onPick={async (c) => {
+              const err = await updateProfile({ color: c })
+              if (err) toast(err, 'error')
+            }}
+          />
         </div>
       </div>
 

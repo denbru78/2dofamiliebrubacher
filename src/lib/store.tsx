@@ -56,8 +56,8 @@ interface StoreValue {
   claimTask: (id: string) => Promise<string | null>
   releaseTask: (id: string) => Promise<string | null>
   archiveTask: (id: string) => Promise<string | null>
-  updateProfile: (patch: { display_name?: string; avatar?: string }) => Promise<string | null>
-  updateMemberProfile: (id: string, patch: { display_name?: string; avatar?: string; role?: Role; active?: boolean }) => Promise<string | null>
+  updateProfile: (patch: { display_name?: string; avatar?: string; color?: string }) => Promise<string | null>
+  updateMemberProfile: (id: string, patch: { display_name?: string; avatar?: string; role?: Role; active?: boolean; color?: string }) => Promise<string | null>
   updateSettings: (patch: Partial<Pick<Settings, 'priorities_enabled' | 'weekly_goal' | 'kids_can_claim_pool' | 'achievements_enabled'>>) => Promise<string | null>
   profileById: (id: string | null | undefined) => Profile | undefined
   weekProgress: { done: number; total: number; goal: number }
@@ -223,7 +223,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           for (const u of allowed) {
             if (u.profile_id === null || u.profile_id === profile.id) {
               const def = achievementDef(u.key)
-              if (def) toast(`${def.emoji} Neuer Erfolg: ${def.title}`, 'info')
+              if (def) toast(`Neuer Erfolg: ${def.title}`, 'info')
             }
           }
         } else if (error) {
@@ -376,7 +376,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const { task, error } = await patchTask(id, { status: 'done' })
       if (error) return error
       if (task) {
-        toast('Geschafft! 🎉', 'success', {
+        toast('Geschafft!', 'success', {
           label: 'Rückgängig',
           onClick: () => {
             void reopenTaskRef.current(id)
@@ -444,7 +444,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   )
 
   const updateProfile = useCallback(
-    async (patch: { display_name?: string; avatar?: string }) => {
+    async (patch: { display_name?: string; avatar?: string; color?: string }) => {
       if (!profile) return 'Nicht angemeldet.'
       const { data, error } = await supabase.from('profiles').update(patch).eq('id', profile.id).select('*').single()
       if (error) return errMsg(error)
@@ -457,7 +457,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   )
 
   const updateMemberProfile = useCallback(
-    async (id: string, patch: { display_name?: string; avatar?: string; role?: Role; active?: boolean }) => {
+    async (id: string, patch: { display_name?: string; avatar?: string; role?: Role; active?: boolean; color?: string }) => {
       if (!profile) return 'Nicht angemeldet.'
       if (profile.role !== 'admin') return 'Nur Eltern können andere Profile bearbeiten.'
       if (id === profile.id && patch.role && patch.role !== 'admin') return 'Du kannst dir selbst nicht die Admin-Rolle entziehen.'

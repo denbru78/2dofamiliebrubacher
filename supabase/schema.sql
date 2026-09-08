@@ -22,9 +22,11 @@ create table if not exists public.profiles (
   role          text not null default 'member' check (role in ('admin','member')),
   avatar        text not null default '🙂',
   active        boolean not null default true,
+  color         text,
   created_at    timestamptz not null default now()
 );
 alter table public.profiles add column if not exists active boolean not null default true;
+alter table public.profiles add column if not exists color text;
 
 create table if not exists public.settings (
   family_id          uuid primary key references public.families(id) on delete cascade,
@@ -149,13 +151,20 @@ begin
 
   select * into seed from public.family_seed where lower(email) = lower(new.email);
 
-  insert into public.profiles (id, family_id, display_name, role, avatar)
+  insert into public.profiles (id, family_id, display_name, role, avatar, color)
   values (
     new.id,
     fam,
     coalesce(seed.display_name, initcap(split_part(new.email, '@', 1))),
     coalesce(seed.role, 'member'),
-    coalesce(seed.avatar, '🙂')
+    coalesce(seed.avatar, '🙂'),
+    case seed.avatar
+      when '/avatars/papa.png' then 'sage'
+      when '/avatars/mama.png' then 'rose'
+      when '/avatars/mia.png' then 'pink'
+      when '/avatars/leo.png' then 'blue'
+      else 'grey'
+    end
   )
   on conflict (id) do nothing;
   return new;
@@ -498,7 +507,7 @@ create table if not exists public.categories (
   id          uuid primary key default gen_random_uuid(),
   family_id   uuid not null references public.families(id) on delete cascade,
   name        text not null check (char_length(trim(name)) > 0),
-  icon        text not null default '✨',
+  icon        text not null default 'sparkle',
   sort_order  integer not null default 0,
   is_active   boolean not null default true,
   created_at  timestamptz not null default now(),
@@ -524,14 +533,14 @@ insert into public.categories (family_id, name, icon, sort_order)
 select f.id, c.name, c.icon, c.sort_order
 from public.families f
 cross join (values
-  ('Haus & Haushalt',        '🏠', 10),
-  ('Garten',                 '🌿', 20),
-  ('Auto & Mobilität',       '🚗', 30),
-  ('Besorgen & Kaufen',      '🛒', 40),
-  ('Prüfen & Recherchieren', '🔍', 50),
-  ('Familie & Kinder',       '👨‍👩‍👧‍👦', 60),
-  ('Organisation',           '📋', 70),
-  ('Sonstiges',              '✨', 80)
+  ('Haus & Haushalt',        'home', 10),
+  ('Garten',                 'leaf', 20),
+  ('Auto & Mobilität',       'car', 30),
+  ('Besorgen & Kaufen',      'cart', 40),
+  ('Prüfen & Recherchieren', 'search', 50),
+  ('Familie & Kinder',       'family', 60),
+  ('Organisation',           'clipboard', 70),
+  ('Sonstiges',              'sparkle', 80)
 ) as c(name, icon, sort_order)
 on conflict (family_id, name) do nothing;
 
@@ -585,14 +594,14 @@ as $$
 begin
   insert into public.settings (family_id) values (new.id) on conflict do nothing;
   insert into public.categories (family_id, name, icon, sort_order) values
-    (new.id, 'Haus & Haushalt', '🏠', 10),
-    (new.id, 'Garten', '🌿', 20),
-    (new.id, 'Auto & Mobilität', '🚗', 30),
-    (new.id, 'Besorgen & Kaufen', '🛒', 40),
-    (new.id, 'Prüfen & Recherchieren', '🔍', 50),
-    (new.id, 'Familie & Kinder', '👨‍👩‍👧‍👦', 60),
-    (new.id, 'Organisation', '📋', 70),
-    (new.id, 'Sonstiges', '✨', 80)
+    (new.id, 'Haus & Haushalt', 'home', 10),
+    (new.id, 'Garten', 'leaf', 20),
+    (new.id, 'Auto & Mobilität', 'car', 30),
+    (new.id, 'Besorgen & Kaufen', 'cart', 40),
+    (new.id, 'Prüfen & Recherchieren', 'search', 50),
+    (new.id, 'Familie & Kinder', 'family', 60),
+    (new.id, 'Organisation', 'clipboard', 70),
+    (new.id, 'Sonstiges', 'sparkle', 80)
   on conflict do nothing;
   return new;
 end;
@@ -614,5 +623,11 @@ begin
   end if;
 exception when others then null;
 end $$;
+
+-- Familienfarben für Standard-Avatare
+update public.profiles set color = 'sage' where color is null and avatar = '/avatars/papa.png';
+update public.profiles set color = 'rose' where color is null and avatar = '/avatars/mama.png';
+update public.profiles set color = 'pink' where color is null and avatar = '/avatars/mia.png';
+update public.profiles set color = 'blue' where color is null and avatar = '/avatars/leo.png';
 
 -- Fertig. Jetzt die vier Benutzer im Dashboard anlegen (siehe README_DE.md).

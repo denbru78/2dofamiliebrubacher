@@ -5,6 +5,7 @@ import { useStore } from '../lib/store'
 import { Avatar } from '../components/Avatar'
 import { MemberEditSheet } from '../components/MemberEditSheet'
 import { IconChevron } from '../components/Icons'
+import { memberColor } from '../lib/colors'
 
 interface Props {
   go: (v: View, personFilter?: string) => void
@@ -34,7 +35,7 @@ export function FamilyPage({ go }: Props) {
           const mineDone = done.filter((t) => t.completed_by === p.id).length
           const inactive = p.active === false
           return (
-            <div key={p.id} className={`member-card ${inactive ? 'inactive' : ''}`}>
+            <div key={p.id} className={`member-card ${inactive ? 'inactive' : ''}`} style={{ borderTop: `4px solid ${memberColor(p).dot}` }}>
               <button className="member-card-main" onClick={() => go('tasks', p.id)}>
                 <Avatar profile={p} size="xl" />
                 <span className="member-name">{p.display_name}</span>

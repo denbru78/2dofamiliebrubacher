@@ -4,6 +4,7 @@ import { Avatar } from '../components/Avatar'
 import { formatDate, startOfWeek, weekKey } from '../lib/dates'
 import { useMemo } from 'react'
 import { IconBack } from '../components/Icons'
+import { AppIcon } from '../components/AppIcon'
 
 export function AchievementsPage({ onBack }: { onBack: () => void }) {
   const { achievements, profiles, profile, tasks, settings, weekProgress } = useStore()
@@ -69,7 +70,9 @@ export function AchievementsPage({ onBack }: { onBack: () => void }) {
           const u = familyUnlocked(d.key)
           return (
             <div key={d.key} className={`ach ${u ? '' : 'locked'}`}>
-              <span className="ach-emoji">{d.emoji}</span>
+              <span className="ach-icon">
+                <AppIcon name={d.emoji} size={24} />
+              </span>
               <span className="ach-title">{d.title}</span>
               <span className="ach-desc">{d.description}</span>
               {u && <span className="muted small ach-people">Erreicht am {formatDate(u.unlocked_at)}</span>}
@@ -85,10 +88,16 @@ export function AchievementsPage({ onBack }: { onBack: () => void }) {
           const mine = !!profile && ids.includes(profile.id)
           return (
             <div key={d.key} className={`ach ${ids.length ? '' : 'locked'}`}>
-              <span className="ach-emoji">{d.emoji}</span>
+              <span className="ach-icon">
+                <AppIcon name={d.emoji} size={24} />
+              </span>
               <span className="ach-title">
                 {d.title}
-                {mine ? ' ✓' : ''}
+                {mine && (
+                  <span className="ach-mine">
+                    <AppIcon name="check" size={14} />
+                  </span>
+                )}
               </span>
               <span className="ach-desc">{d.description}</span>
               <span className="avatar-stack ach-people">

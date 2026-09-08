@@ -4,6 +4,8 @@ import { priorityLabel, recurrenceLabel } from '../lib/constants'
 import { dueLabel, dueState, formatDateTime } from '../lib/dates'
 import { Avatar } from './Avatar'
 import { IconCheck, IconEdit } from './Icons'
+import { AppIcon } from './AppIcon'
+import { memberColor } from '../lib/colors'
 
 interface Props {
   task: Task
@@ -57,7 +59,7 @@ export function TaskCard({ task, onEdit, compact = false, showHistory = false, s
       <div className="task-main">
         <div className="task-title-row">
           <span className="task-cat" aria-hidden="true">
-            {categoryIcon(task.category)}
+            <AppIcon name={categoryIcon(task.category)} size={20} />
           </span>
           <button className={`task-title ${isDone ? 'done' : ''}`} onClick={() => openTask(task.id)}>
             {task.title}
@@ -75,17 +77,24 @@ export function TaskCard({ task, onEdit, compact = false, showHistory = false, s
           {settings.priorities_enabled && task.priority !== 'none' && (
             <span className={`tag ${task.priority}`}>{priorityLabel(task.priority)}</span>
           )}
-          {!compact && task.recurrence !== 'none' && <span className="tag">↻ {recurrenceLabel(task.recurrence, task.recurrence_interval)}</span>}
+          {!compact && task.recurrence !== 'none' && (
+            <span className="tag">
+              <AppIcon name="repeat" size={12} /> {recurrenceLabel(task.recurrence, task.recurrence_interval)}
+            </span>
+          )}
           {!compact && task.cost !== null && <span className="tag">{task.cost.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</span>}
           {!compact && task.link && (
             <a className="tag" href={task.link} target="_blank" rel="noreferrer">
-              🔗 Link
+              <AppIcon name="link" size={12} /> Link
             </a>
           )}
           {assignees.length > 0 && (
-            <span className="avatar-stack" style={{ marginLeft: 'auto' }}>
+            <span className="assignees" style={{ marginLeft: 'auto' }}>
               {assignees.map((p) => (
-                <Avatar key={p.id} profile={p} size="sm" />
+                <span key={p.id} className="assignee">
+                  <span className="dot" style={{ background: memberColor(p).dot }} />
+                  <Avatar profile={p} size="sm" />
+                </span>
               ))}
             </span>
           )}

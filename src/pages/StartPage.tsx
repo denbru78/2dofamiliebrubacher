@@ -9,6 +9,7 @@ import { HeroIllustration } from '../components/HeroIllustration'
 import { QuickCapture } from '../components/QuickCapture'
 import { TaskCard } from '../components/TaskCard'
 import { IconChevron, IconPlus } from '../components/Icons'
+import { AppIcon } from '../components/AppIcon'
 
 interface Props {
   go: (v: View, personFilter?: string, urgentOnly?: boolean) => void
@@ -50,7 +51,7 @@ export function StartPage({ go, onNew, onEdit }: Props) {
     done === 0
       ? 'Los geht’s – die Woche ist noch jung.'
       : done >= goal
-        ? 'Wochenziel geschafft – stark gemacht! 🎉'
+        ? 'Wochenziel geschafft – stark gemacht!'
         : remaining <= 3
           ? `Nur noch ${remaining} bis zum Wochenziel`
           : pct >= 50
@@ -107,7 +108,9 @@ export function StartPage({ go, onNew, onEdit }: Props) {
         </div>
         {important.length === 0 ? (
           <div className="empty">
-            <div className="empty-emoji">🌤️</div>
+            <div className="empty-icon">
+              <AppIcon name="sun" size={30} />
+            </div>
             Nichts Dringendes – genieß den Tag.
           </div>
         ) : (
@@ -132,7 +135,7 @@ export function StartPage({ go, onNew, onEdit }: Props) {
           )}
         </div>
         {mine.length === 0 ? (
-          <div className="empty">Heute nichts Persönliches offen 👍</div>
+          <div className="empty">Heute nichts Persönliches offen.</div>
         ) : (
           <div className="task-list">
             {mine.slice(0, 3).map((t) => (
@@ -156,7 +159,9 @@ export function StartPage({ go, onNew, onEdit }: Props) {
         </div>
         {pool.length === 0 ? (
           <div className="empty">
-            <div className="empty-emoji">🧺</div>
+            <div className="empty-icon">
+              <AppIcon name="basket" size={30} />
+            </div>
             Der Pool ist leer.
           </div>
         ) : (
@@ -194,7 +199,9 @@ export function StartPage({ go, onNew, onEdit }: Props) {
         </div>
         {latestDef ? (
           <div className="ach-inline">
-            <span className="ach-emoji">{latestDef.emoji}</span>
+            <span className="ach-icon">
+              <AppIcon name={latestDef.emoji} size={24} />
+            </span>
             <div>
               <div style={{ fontWeight: 700 }}>{latestDef.title}</div>
               <div className="muted small">

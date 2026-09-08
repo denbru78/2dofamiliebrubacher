@@ -7,6 +7,7 @@ import { isImportantNow } from './StartPage'
 import { Avatar } from '../components/Avatar'
 import { TaskCard } from '../components/TaskCard'
 import { IconSearch, IconX } from '../components/Icons'
+import { AppIcon } from '../components/AppIcon'
 
 interface Props {
   personFilter: string // 'all' | 'pool' | profile id
@@ -154,7 +155,7 @@ export function TasksPage({ personFilter, setPersonFilter, urgentOnly, setUrgent
         </button>
         {catList.map((c) => (
           <button key={c.id} className={`chip ${category === c.name ? 'active' : ''}`} onClick={() => setCategory(category === c.name ? 'all' : c.name)}>
-            <span aria-hidden="true">{c.icon}</span> {categoryShort(c.name)}
+            <AppIcon name={c.icon} size={16} /> {categoryShort(c.name)}
           </button>
         ))}
         {settings.priorities_enabled && (
@@ -178,7 +179,9 @@ export function TasksPage({ personFilter, setPersonFilter, urgentOnly, setUrgent
       <div className="card">
         {filtered.length === 0 ? (
           <div className="empty">
-            <div className="empty-emoji">{showDone ? '📖' : '🎈'}</div>
+            <div className="empty-icon">
+              <AppIcon name={showDone ? 'book' : 'balloon'} size={30} />
+            </div>
             {showDone ? 'Noch nichts Erledigtes mit diesen Filtern.' : 'Keine offenen Aufgaben mit diesen Filtern.'}
           </div>
         ) : (

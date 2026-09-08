@@ -2,6 +2,20 @@ import { useState } from 'react'
 import type { Category } from '../lib/types'
 import { useStore } from '../lib/store'
 import { IconEdit, IconX } from './Icons'
+import { AppIcon } from './AppIcon'
+import { CATEGORY_ICON_KEYS } from '../lib/constants'
+
+function IconPicker({ value, onPick }: { value: string; onPick: (k: string) => void }) {
+  return (
+    <div className="chips wrap" style={{ width: '100%' }}>
+      {CATEGORY_ICON_KEYS.map((k) => (
+        <button key={k} className={`chip icon-chip ${value === k ? 'active' : ''}`} onClick={() => onPick(k)} aria-label={k}>
+          <AppIcon name={k} size={18} />
+        </button>
+      ))}
+    </div>
+  )
+}
 
 function CategoryRow({ c, index, total }: { c: Category; index: number; total: number }) {
   const { allCategories, updateCategory, deleteCategory, toast } = useStore()
@@ -42,20 +56,20 @@ function CategoryRow({ c, index, total }: { c: Category; index: number; total: n
   return (
     <div className="cat-row">
       {editing ? (
-        <div className="cat-edit">
-          <input className="input" style={{ width: 64, textAlign: 'center' }} value={icon} onChange={(e) => setIcon(e.target.value)} maxLength={4} aria-label="Symbol" />
-          <input className="input" value={name} onChange={(e) => setName(e.target.value)} maxLength={30} aria-label="Name" disabled={isDefaultOther} />
+        <div className="cat-edit" style={{ flexWrap: 'wrap' }}>
+          <input className="input" value={name} onChange={(e) => setName(e.target.value)} maxLength={30} aria-label="Name" disabled={isDefaultOther} style={{ flex: '1 1 160px' }} />
           <button className="btn sm" onClick={save}>
-            OK
+            Speichern
           </button>
           <button className="icon-btn" onClick={() => setEditing(false)} aria-label="Abbrechen">
             <IconX />
           </button>
+          <IconPicker value={icon} onPick={setIcon} />
         </div>
       ) : (
         <>
           <span className="cat-icon" aria-hidden="true">
-            {c.icon}
+            <AppIcon name={c.icon} size={20} />
           </span>
           <span style={{ fontWeight: 600, flex: '1 1 auto', minWidth: 0, overflowWrap: 'anywhere' }} className={c.is_active ? '' : 'muted'}>
             {c.name}
@@ -98,7 +112,7 @@ function CategoryRow({ c, index, total }: { c: Category; index: number; total: n
 export function CategoryManager() {
   const { allCategories, addCategory, toast } = useStore()
   const [name, setName] = useState('')
-  const [icon, setIcon] = useState('✨')
+  const [icon, setIcon] = useState('sparkle')
   const [busy, setBusy] = useState(false)
   const sorted = allCategories.slice().sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name))
 
@@ -112,7 +126,7 @@ export function CategoryManager() {
       return
     }
     setName('')
-    setIcon('✨')
+    setIcon('sparkle')
     toast('Kategorie angelegt', 'info')
   }
 
@@ -125,8 +139,7 @@ export function CategoryManager() {
       {sorted.map((c, i) => (
         <CategoryRow key={c.id} c={c} index={i} total={sorted.length} />
       ))}
-      <div className="cat-edit" style={{ marginTop: 12 }}>
-        <input className="input" style={{ width: 64, textAlign: 'center' }} value={icon} onChange={(e) => setIcon(e.target.value)} maxLength={4} aria-label="Symbol" />
+      <div className="cat-edit" style={{ marginTop: 12, flexWrap: 'wrap' }}>
         <input
           className="input"
           placeholder="Neue Kategorie"
@@ -140,6 +153,7 @@ export function CategoryManager() {
         <button className="btn sm" onClick={add} disabled={busy || !name.trim()}>
           Hinzufügen
         </button>
+        <IconPicker value={icon} onPick={setIcon} />
       </div>
       <div className="muted small" style={{ marginTop: 8 }}>Beim Löschen einer Kategorie wandern ihre Aufgaben nach „Sonstiges“. Ausgeblendete Kategorien bleiben bei alten Aufgaben sichtbar.</div>
     </div>

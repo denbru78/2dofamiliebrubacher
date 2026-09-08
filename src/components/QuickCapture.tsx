@@ -31,7 +31,7 @@ export function QuickCapture() {
       return
     }
     setTitle('')
-    toast('✓ Im Familien-Pool gespeichert', 'info')
+    toast('Im Familien-Pool gespeichert', 'info')
   }
 
   return (

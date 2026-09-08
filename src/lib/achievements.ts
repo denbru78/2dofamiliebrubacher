@@ -10,15 +10,15 @@ export interface AchievementDef {
 }
 
 export const ACHIEVEMENT_DEFS: AchievementDef[] = [
-  { key: 'first_done', title: 'Erste Aufgabe', description: 'Die erste Aufgabe ist geschafft.', emoji: '🌱', scope: 'personal' },
-  { key: 'five_done', title: '5 geschafft', description: '5 Aufgaben erledigt.', emoji: '⭐', scope: 'personal' },
-  { key: 'twenty_done', title: '20 geschafft', description: '20 Aufgaben erledigt.', emoji: '🌟', scope: 'personal' },
-  { key: 'five_garden', title: 'Grüner Daumen', description: '5 Gartenaufgaben erledigt.', emoji: '🌿', scope: 'personal' },
-  { key: 'five_pool', title: 'Ich mach das', description: '5 Pool-Aufgaben übernommen.', emoji: '🙋', scope: 'personal' },
-  { key: 'same_day', title: 'Sofort erledigt', description: 'Eine Aufgabe noch am selben Tag erledigt.', emoji: '⚡', scope: 'personal' },
-  { key: 'weekly_goal', title: 'Wochenziel erreicht', description: 'Die Familie hat ihr Wochenziel geschafft.', emoji: '🏆', scope: 'family' },
-  { key: 'fifty_family', title: '50 gemeinsam', description: '50 Aufgaben als Familie erledigt.', emoji: '🎉', scope: 'family' },
-  { key: 'hundred_family', title: '100 gemeinsam', description: '100 Aufgaben als Familie erledigt.', emoji: '🏡', scope: 'family' },
+  { key: 'first_done', title: 'Erste Aufgabe', description: 'Die erste Aufgabe ist geschafft.', emoji: 'check', scope: 'personal' },
+  { key: 'five_done', title: '5 geschafft', description: '5 Aufgaben erledigt.', emoji: 'star', scope: 'personal' },
+  { key: 'twenty_done', title: '20 geschafft', description: '20 Aufgaben erledigt.', emoji: 'sparkle', scope: 'personal' },
+  { key: 'five_garden', title: 'Grüner Daumen', description: '5 Gartenaufgaben erledigt.', emoji: 'leaf', scope: 'personal' },
+  { key: 'five_pool', title: 'Ich mach das', description: '5 Pool-Aufgaben übernommen.', emoji: 'hand', scope: 'personal' },
+  { key: 'same_day', title: 'Sofort erledigt', description: 'Eine Aufgabe noch am selben Tag erledigt.', emoji: 'bolt', scope: 'personal' },
+  { key: 'weekly_goal', title: 'Wochenziel erreicht', description: 'Die Familie hat ihr Wochenziel geschafft.', emoji: 'trophy', scope: 'family' },
+  { key: 'fifty_family', title: '50 gemeinsam', description: '50 Aufgaben als Familie erledigt.', emoji: 'star', scope: 'family' },
+  { key: 'hundred_family', title: '100 gemeinsam', description: '100 Aufgaben als Familie erledigt.', emoji: 'home', scope: 'family' },
 ]
 
 export function achievementDef(key: string): AchievementDef | undefined {

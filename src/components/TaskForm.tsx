@@ -12,6 +12,7 @@ import {
 } from '../lib/constants'
 import { Avatar } from './Avatar'
 import { IconX } from './Icons'
+import { AppIcon } from './AppIcon'
 
 interface Props {
   task?: Task | null
@@ -236,7 +237,7 @@ export function TaskForm({ task, onClose, onGoToTasks }: Props) {
           <div className="chips wrap">
             {categories.map((c) => (
               <button key={c.id} className={`chip ${input.category === c.name ? 'active' : ''}`} onClick={() => set('category', c.name)}>
-                <span aria-hidden="true">{c.icon}</span> {categoryShort(c.name)}
+                <AppIcon name={c.icon} size={16} /> {categoryShort(c.name)}
               </button>
             ))}
             {task && !categories.some((c) => c.name === input.category) && (

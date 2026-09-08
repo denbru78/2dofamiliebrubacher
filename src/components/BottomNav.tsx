@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import type { View } from '../App'
-import { IconGear, IconHome, IconList, IconPool } from './Icons'
+import { AppIcon } from './AppIcon'
 
 interface Props {
   view: View
@@ -9,10 +9,10 @@ interface Props {
 
 export function BottomNav({ view, onChange }: Props) {
   const items: { key: View; label: string; icon: ReactNode; matches: View[] }[] = [
-    { key: 'start', label: 'Unser Plan', icon: <IconHome />, matches: ['start', 'pool', 'achievements'] },
-    { key: 'tasks', label: 'Aufgaben', icon: <IconList />, matches: ['tasks'] },
-    { key: 'family', label: 'Familie', icon: <IconPool />, matches: ['family'] },
-    { key: 'settings', label: 'Einstellungen', icon: <IconGear />, matches: ['settings'] },
+    { key: 'start', label: 'Unser Plan', icon: <AppIcon name="home" />, matches: ['start', 'pool', 'achievements'] },
+    { key: 'tasks', label: 'Aufgaben', icon: <AppIcon name="clipboard" />, matches: ['tasks'] },
+    { key: 'family', label: 'Familie', icon: <AppIcon name="family" />, matches: ['family'] },
+    { key: 'settings', label: 'Einstellungen', icon: <AppIcon name="gear" />, matches: ['settings'] },
   ]
   return (
     <nav className="bottom-nav" aria-label="Hauptnavigation">

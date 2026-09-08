@@ -1,19 +1,23 @@
 import type { DueKind, Priority, Recurrence } from './types'
 
 export const CATEGORIES: { name: string; short: string; emoji: string }[] = [
-  { name: 'Haus & Haushalt', short: 'Haus', emoji: '🏠' },
-  { name: 'Garten', short: 'Garten', emoji: '🌿' },
-  { name: 'Auto & Mobilität', short: 'Auto', emoji: '🚗' },
-  { name: 'Besorgen & Kaufen', short: 'Kaufen', emoji: '🛒' },
-  { name: 'Prüfen & Recherchieren', short: 'Prüfen', emoji: '🔍' },
-  { name: 'Familie & Kinder', short: 'Familie', emoji: '👨‍👩‍👧‍👦' },
-  { name: 'Organisation', short: 'Organisation', emoji: '📋' },
-  { name: 'Sonstiges', short: 'Sonstiges', emoji: '✨' },
+  { name: 'Haus & Haushalt', short: 'Haus', emoji: 'home' },
+  { name: 'Garten', short: 'Garten', emoji: 'leaf' },
+  { name: 'Auto & Mobilität', short: 'Auto', emoji: 'car' },
+  { name: 'Besorgen & Kaufen', short: 'Kaufen', emoji: 'cart' },
+  { name: 'Prüfen & Recherchieren', short: 'Prüfen', emoji: 'search' },
+  { name: 'Familie & Kinder', short: 'Familie', emoji: 'family' },
+  { name: 'Organisation', short: 'Organisation', emoji: 'clipboard' },
+  { name: 'Sonstiges', short: 'Sonstiges', emoji: 'sparkle' },
 ]
 
+/** Icon-Schlüssel der Kategorie (Fallback, wenn die Tabelle fehlt) */
 export function categoryEmoji(name: string): string {
-  return CATEGORIES.find((c) => c.name === name)?.emoji ?? '✨'
+  return CATEGORIES.find((c) => c.name === name)?.emoji ?? 'sparkle'
 }
+
+/** Icon-Schlüssel, die im Kategorien-Editor angeboten werden */
+export const CATEGORY_ICON_KEYS = ['home', 'leaf', 'car', 'cart', 'search', 'family', 'clipboard', 'sparkle', 'tool', 'calendar', 'basket', 'book', 'heart', 'flag', 'euro', 'sun']
 
 /** Kurzform für Chips (Haus, Garten, Auto, Kaufen …) */
 export function categoryShort(name: string): string {
@@ -88,7 +92,5 @@ export function recurrenceLabel(rec: Recurrence, interval: number): string {
       return ''
   }
 }
-
-export const EMOJI_AVATARS = ['🙂', '😊', '😎', '🐻', '🦊', '🐱', '🐶', '🦄', '🌟', '🍀', '🚀', '⚽', '🎨', '🎸', '🌸', '🐢']
 
 export const IMAGE_AVATARS = ['/avatars/papa.png', '/avatars/mama.png', '/avatars/mia.png', '/avatars/leo.png']

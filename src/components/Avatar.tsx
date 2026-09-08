@@ -1,27 +1,24 @@
 import type { Profile } from '../lib/types'
-
-const BG_BY_AVATAR: Record<string, string> = {
-  '/avatars/papa.png': '#dfe8e3',
-  '/avatars/mama.png': '#f9dede',
-  '/avatars/mia.png': '#f9e0e6',
-  '/avatars/leo.png': '#d9e6f6',
-}
+import { initials, memberColor } from '../lib/colors'
 
 interface Props {
   profile?: Profile | null
   avatar?: string
+  color?: string | null
+  name?: string
   size?: 'sm' | 'md' | 'lg' | 'xl'
   title?: string
 }
 
-export function Avatar({ profile, avatar, size = 'md', title }: Props) {
-  const a = avatar ?? profile?.avatar ?? '🙂'
-  const label = title ?? profile?.display_name ?? ''
+/** Feste Avatar-Welt: Bild-Avatare, sonst Initialen auf der Familienfarbe. */
+export function Avatar({ profile, avatar, color, name, size = 'md', title }: Props) {
+  const a = avatar ?? profile?.avatar ?? ''
+  const label = title ?? name ?? profile?.display_name ?? ''
   const isImage = a.startsWith('/') || a.startsWith('http')
-  const style = isImage ? { background: BG_BY_AVATAR[a] ?? 'var(--surface-2)' } : undefined
+  const col = memberColor({ avatar: a, color: color ?? profile?.color ?? null })
   return (
-    <span className={`avatar ${size}`} title={label} aria-label={label} style={style}>
-      {isImage ? <img src={a} alt={label} loading="lazy" /> : <span aria-hidden="true">{a}</span>}
+    <span className={`avatar ${size}`} title={label} aria-label={label} style={{ background: col.bg, color: col.ink }}>
+      {isImage ? <img src={a} alt={label} loading="lazy" /> : <span aria-hidden="true">{initials(label) || '•'}</span>}
     </span>
   )
 }

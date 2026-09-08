@@ -1,9 +1,11 @@
+import { useState } from 'react'
 import type { Task } from '../lib/types'
 import { useStore } from '../lib/store'
 import { priorityLabel, recurrenceLabel } from '../lib/constants'
 import { dueLabel, formatDateTime } from '../lib/dates'
 import { Avatar } from './Avatar'
 import { IconX } from './Icons'
+import { AppIcon } from './AppIcon'
 
 interface Props {
   task: Task
@@ -30,6 +32,7 @@ export function TaskDetail({ task, onClose, onEdit }: Props) {
   const creator = profileById(task.created_by)
   const completer = profileById(task.completed_by)
   const due = dueLabel(task.due_kind, task.due_date)
+  const [confirmDelete, setConfirmDelete] = useState(false)
 
   const run = async (fn: () => Promise<string | null>, close = true) => {
     const err = await fn()
@@ -43,8 +46,8 @@ export function TaskDetail({ task, onClose, onEdit }: Props) {
         <div className="sheet-grab" />
         <div className="sheet-head" style={{ alignItems: 'flex-start' }}>
           <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', minWidth: 0 }}>
-            <span className="task-cat" style={{ fontSize: 26 }} aria-hidden="true">
-              {categoryIcon(task.category)}
+            <span className="detail-icon" aria-hidden="true">
+              <AppIcon name={categoryIcon(task.category)} size={24} />
             </span>
             <h2 style={{ overflowWrap: 'anywhere' }}>{task.title}</h2>
           </div>
@@ -111,7 +114,9 @@ export function TaskDetail({ task, onClose, onEdit }: Props) {
           {task.recurrence !== 'none' && (
             <div className="detail-row">
               <span className="detail-label">Wiederholung</span>
-              <span>↻ {recurrenceLabel(task.recurrence, task.recurrence_interval)}</span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <AppIcon name="repeat" size={16} /> {recurrenceLabel(task.recurrence, task.recurrence_interval)}
+            </span>
             </div>
           )}
           <div className="detail-row">
@@ -135,7 +140,7 @@ export function TaskDetail({ task, onClose, onEdit }: Props) {
         <div className="detail-actions">
           {canComplete && (
             <button className="btn block" onClick={() => run(() => completeTask(task.id))}>
-              ✓ Erledigen
+              Erledigen
             </button>
           )}
           {canClaim && !isMine && (
@@ -158,19 +163,23 @@ export function TaskDetail({ task, onClose, onEdit }: Props) {
                   Zurück in den Pool
                 </button>
               )}
-              <button
-                className="btn sm ghost"
-                style={{ marginLeft: 'auto', color: 'var(--red)' }}
-                onClick={() => {
-                  if (task.recurrence !== 'none') {
-                    onEdit(task) // Lösch-Abfrage für Wiederholungen liegt im Bearbeiten-Dialog
-                    return
-                  }
-                  if (window.confirm(`„${task.title}“ wirklich löschen?`)) run(() => deleteTask(task.id))
-                }}
-              >
-                Löschen
-              </button>
+              {!confirmDelete ? (
+                <button className="btn sm ghost" style={{ marginLeft: 'auto' }} onClick={() => (task.recurrence !== 'none' ? onEdit(task) : setConfirmDelete(true))}>
+                  Löschen
+                </button>
+              ) : (
+                <div className="confirm-box">
+                  <div style={{ fontWeight: 600 }}>„{task.title}“ wirklich löschen?</div>
+                  <div className="task-actions">
+                    <button className="btn sm danger" onClick={() => run(() => deleteTask(task.id))}>
+                      Ja, löschen
+                    </button>
+                    <button className="btn sm secondary" onClick={() => setConfirmDelete(false)}>
+                      Abbrechen
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

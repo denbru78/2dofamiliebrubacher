@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import type { Profile, Role } from '../lib/types'
 import { useStore } from '../lib/store'
-import { EMOJI_AVATARS, IMAGE_AVATARS } from '../lib/constants'
+import { IMAGE_AVATARS } from '../lib/constants'
+import { MEMBER_COLORS, memberColorKey } from '../lib/colors'
+import type { MemberColor } from '../lib/colors'
 import { Avatar } from './Avatar'
 import { IconX } from './Icons'
 
-export function AvatarPicker({ value, onPick }: { value: string; onPick: (a: string) => void }) {
+export function AvatarPicker({ value, onPick, name, color }: { value: string; onPick: (a: string) => void; name?: string; color?: string | null }) {
   return (
     <div className="chips wrap">
       {IMAGE_AVATARS.map((a) => (
@@ -13,9 +15,19 @@ export function AvatarPicker({ value, onPick }: { value: string; onPick: (a: str
           <Avatar avatar={a} size="md" />
         </button>
       ))}
-      {EMOJI_AVATARS.map((e) => (
-        <button key={e} className={`chip ${value === e ? 'active sage' : ''}`} onClick={() => onPick(e)} aria-label={`Avatar ${e}`}>
-          <span style={{ fontSize: 22 }}>{e}</span>
+      <button className={`chip ${value === '' ? 'active sage' : ''}`} onClick={() => onPick('')} aria-label="Initialen">
+        <Avatar avatar="" name={name ?? ''} color={color} size="md" /> Initialen
+      </button>
+    </div>
+  )
+}
+
+export function ColorPicker({ value, onPick }: { value: MemberColor; onPick: (c: MemberColor) => void }) {
+  return (
+    <div className="chips wrap">
+      {MEMBER_COLORS.map((c) => (
+        <button key={c.key} className={`chip color-chip ${value === c.key ? 'active' : ''}`} onClick={() => onPick(c.key)} aria-label={c.label} style={{ background: c.bg, color: c.ink, borderColor: value === c.key ? c.ink : c.bg }}>
+          <span className="dot" style={{ background: c.dot }} /> {c.label}
         </button>
       ))}
     </div>
@@ -26,6 +38,7 @@ export function MemberEditSheet({ member, onClose }: { member: Profile; onClose:
   const { profile, updateMemberProfile, toast } = useStore()
   const [name, setName] = useState(member.display_name)
   const [avatar, setAvatar] = useState(member.avatar)
+  const [color, setColor] = useState<MemberColor>(memberColorKey(member))
   const [role, setRole] = useState<Role>(member.role)
   const [active, setActive] = useState<boolean>(member.active !== false)
   const [busy, setBusy] = useState(false)
@@ -39,7 +52,7 @@ export function MemberEditSheet({ member, onClose }: { member: Profile; onClose:
     }
     setBusy(true)
     setError(null)
-    const err = await updateMemberProfile(member.id, { display_name: name.trim(), avatar, role, active })
+    const err = await updateMemberProfile(member.id, { display_name: name.trim(), avatar, role, active, color })
     setBusy(false)
     if (err) {
       setError(err)
@@ -65,7 +78,11 @@ export function MemberEditSheet({ member, onClose }: { member: Profile; onClose:
         </div>
         <div className="field">
           <span className="label">Avatar</span>
-          <AvatarPicker value={avatar} onPick={setAvatar} />
+          <AvatarPicker value={avatar} onPick={setAvatar} name={name} color={color} />
+        </div>
+        <div className="field">
+          <span className="label">Farbe</span>
+          <ColorPicker value={color} onPick={setColor} />
         </div>
         <div className="field">
           <span className="label">Rolle</span>
