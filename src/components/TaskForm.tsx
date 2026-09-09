@@ -3,6 +3,7 @@ import type { DueKind, Priority, ReminderType, Task, TaskInput } from '../lib/ty
 import { REMINDER_TYPES } from '../lib/reminders'
 import { useStore } from '../lib/store'
 import {
+  BONUS_LEVELS,
   categoryShort,
   DUE_KINDS,
   PRIORITIES,
@@ -37,6 +38,7 @@ function emptyInput(): TaskInput {
     recurrence: 'none',
     recurrence_interval: 1,
     reminder_type: 'none',
+    bonus_points: 0,
   }
 }
 
@@ -54,13 +56,14 @@ function fromTask(t: Task): TaskInput {
     recurrence: t.recurrence,
     recurrence_interval: t.recurrence_interval ?? 1,
     reminder_type: t.reminder_type === 'custom' ? 'custom' : (t.reminder_type ?? 'none'),
+    bonus_points: t.bonus_points ?? 0,
   }
 }
 
 type WhoMode = 'pool' | 'single' | 'multi'
 
 export function TaskForm({ task, prefill, onClose, onGoToTasks }: Props) {
-  const { profiles, settings, categories, createTask, updateTask, deleteTask, archiveTask, toast } = useStore()
+  const { profiles, settings, categories, tasks, createTask, updateTask, deleteTask, archiveTask, toast } = useStore()
   const [input, setInput] = useState<TaskInput>(task ? fromTask(task) : prefill ? { ...emptyInput(), ...prefill } : emptyInput())
   const [whoMode, setWhoMode] = useState<WhoMode>(() => {
     const ids = task ? task.assignee_ids : (prefill?.assignee_ids ?? [])
@@ -196,6 +199,18 @@ export function TaskForm({ task, prefill, onClose, onGoToTasks }: Props) {
   }
 
   const isDoneTask = !!task && (task.status === 'done' || task.status === 'archived')
+  // Budget-Hinweis für Eltern: bereits vergebene Bonuspunkte je Kind in dieser Woche
+  const budgetHint = (() => {
+    if (!settings.bonus_enabled) return ''
+    const ws = new Date(); const day = (ws.getDay() + 6) % 7; ws.setDate(ws.getDate() - day); ws.setHours(0, 0, 0, 0)
+    const kids = profiles.filter((p) => p.role === 'member' && input.assignee_ids.includes(p.id))
+    return kids
+      .map((k) => {
+        const used = tasks.filter((t) => t.id !== task?.id && t.bonus_points > 0 && t.assignee_ids.includes(k.id) && new Date(t.created_at).getTime() >= ws.getTime() && t.bonus_status !== 'rejected').reduce((s, t) => s + t.bonus_points, 0)
+        return `${k.display_name}: ${used + (input.bonus_points ?? 0)} von ${settings.bonus_weekly_budget} P diese Woche`
+      })
+      .join(' · ')
+  })()
   const isPool = input.assignee_ids.length === 0 && whoMode !== 'multi'
   const hasDate = input.due_kind !== 'none' && input.due_kind !== 'someday' && (input.due_kind !== 'date' || !!input.due_date)
   const showN = recChoice === 'weeks_n' || recChoice === 'months_n'
@@ -322,6 +337,23 @@ export function TaskForm({ task, prefill, onClose, onGoToTasks }: Props) {
           {whoMode === 'multi' && <div className="muted small" style={{ marginTop: 6 }}>Mehrere Personen antippen – jede kann die Aufgabe abhaken.</div>}
           {isPool && <div className="muted small" style={{ marginTop: 6 }}>Liegt im Pool – wer mag, drückt „Ich übernehme“.</div>}
         </div>
+
+        {settings.bonus_enabled && (
+          <div className="field">
+            <span className="label">Bonus (nur für freiwillige Extra-Aufgaben)</span>
+            <div className="chips wrap">
+              {BONUS_LEVELS.map((l) => (
+                <button key={l.points} className={`chip ${(input.bonus_points ?? 0) === l.points ? 'active sage' : ''}`} onClick={() => set('bonus_points', l.points)}>
+                  {l.label}
+                </button>
+              ))}
+            </div>
+            <div className="muted small" style={{ marginTop: 6 }}>
+              {BONUS_LEVELS.find((l) => l.points === (input.bonus_points ?? 0))?.hint}
+              {(input.bonus_points ?? 0) > 0 && budgetHint ? ` · ${budgetHint}` : ''}
+            </div>
+          </div>
+        )}
 
         {settings.priorities_enabled && (
           <div className="field">

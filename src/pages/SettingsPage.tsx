@@ -31,6 +31,9 @@ export function SettingsPage() {
   const [goal, setGoal] = useState(String(settings.weekly_goal))
   const [fam, setFam] = useState(familyName)
   const [phone, setPhone] = useState(profile?.phone ?? '')
+  const [pointValue, setPointValue] = useState(String(settings.bonus_point_value))
+  const [budget, setBudget] = useState(String(settings.bonus_weekly_budget))
+  const [hold, setHold] = useState(String(settings.bonus_hold_hours))
   const [perm, setPerm] = useState<string>(typeof Notification !== 'undefined' ? Notification.permission : 'unsupported')
   const [busy, setBusy] = useState(false)
 
@@ -38,6 +41,7 @@ export function SettingsPage() {
   useEffect(() => setGoal(String(settings.weekly_goal)), [settings.weekly_goal])
   useEffect(() => setFam(familyName), [familyName])
   useEffect(() => setPhone(profile?.phone ?? ''), [profile?.phone])
+  useEffect(() => { setPointValue(String(settings.bonus_point_value)); setBudget(String(settings.bonus_weekly_budget)); setHold(String(settings.bonus_hold_hours)) }, [settings.bonus_point_value, settings.bonus_weekly_budget, settings.bonus_hold_hours])
 
   if (!profile) return null
 
@@ -69,7 +73,7 @@ export function SettingsPage() {
     toast(r === 'granted' ? 'Erinnerungen auf diesem Gerät aktiv' : 'Keine Erlaubnis erteilt', r === 'granted' ? 'info' : 'error')
   }
 
-  const toggle = async (key: 'priorities_enabled' | 'kids_can_claim_pool' | 'achievements_enabled' | 'reminders_enabled') => {
+  const toggle = async (key: 'priorities_enabled' | 'kids_can_claim_pool' | 'achievements_enabled' | 'reminders_enabled' | 'bonus_enabled') => {
     const err = await updateSettings({ [key]: !settings[key] })
     if (err) toast(err, 'error')
   }
@@ -232,6 +236,44 @@ export function SettingsPage() {
           Es gibt bewusst keine Einzelmeldung pro Aufgabe: Fälliges wird als eine Tageszusammenfassung gebündelt („Heute sind 3 Aufgaben offen“). Push-Nachrichten bei geschlossener App sind vorbereitet und kommen später.
         </div>
       </div>
+
+      {isAdmin && (
+        <div className="card">
+          <h2 style={{ marginBottom: 6 }}>Bonus / Zusatztaschengeld</h2>
+          <div className="toggle-row">
+            <div>
+              <div style={{ fontWeight: 600 }}>Bonuspunkte verwenden</div>
+              <div className="muted small">Freiwillige Extra-Aufgaben können Punkte bringen. Normale Pflichten bleiben ohne Punkte.</div>
+            </div>
+            <button className={`switch ${settings.bonus_enabled ? 'on' : ''}`} onClick={() => toggle('bonus_enabled')} role="switch" aria-checked={settings.bonus_enabled} aria-label="Bonuspunkte verwenden" />
+          </div>
+          {settings.bonus_enabled && (
+            <>
+              <div className="toggle-row">
+                <div>
+                  <div style={{ fontWeight: 600 }}>Wert eines Punktes (€)</div>
+                  <div className="muted small">Kinder sehen den Wert nur über „Was sind meine Punkte wert?“</div>
+                </div>
+                <input className="input" style={{ width: 84, textAlign: 'center' }} inputMode="decimal" value={pointValue} onChange={(e) => setPointValue(e.target.value)} onBlur={async () => { const v = Math.max(0.05, Math.min(20, Number(pointValue.replace(',', '.')) || 1)); if (v !== settings.bonus_point_value) { const e = await updateSettings({ bonus_point_value: v }); toast(e ?? `1 Punkt = ${v.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}`, e ? 'error' : 'info') } }} aria-label="Wert eines Punktes" />
+              </div>
+              <div className="toggle-row">
+                <div>
+                  <div style={{ fontWeight: 600 }}>Wochenbudget je Kind (Punkte)</div>
+                  <div className="muted small">Nur ein Hinweis für euch beim Anlegen – kein Limit für die Kinder.</div>
+                </div>
+                <input className="input" style={{ width: 84, textAlign: 'center' }} inputMode="numeric" value={budget} onChange={(e) => setBudget(e.target.value)} onBlur={async () => { const v = Math.max(1, Math.min(200, Math.round(Number(budget) || 10))); if (v !== settings.bonus_weekly_budget) { const e = await updateSettings({ bonus_weekly_budget: v }); toast(e ?? `Budget: ${v} Punkte`, e ? 'error' : 'info') } }} aria-label="Wochenbudget" />
+              </div>
+              <div className="toggle-row">
+                <div>
+                  <div style={{ fontWeight: 600 }}>Bedenkzeit im Pool (Stunden)</div>
+                  <div className="muted small">Bonusaufgaben im Pool werden erst nach dieser Zeit fair verteilt (Wechselprinzip).</div>
+                </div>
+                <input className="input" style={{ width: 84, textAlign: 'center' }} inputMode="numeric" value={hold} onChange={(e) => setHold(e.target.value)} onBlur={async () => { const v = Math.max(0, Math.min(48, Math.round(Number(hold) || 0))); if (v !== settings.bonus_hold_hours) { const e = await updateSettings({ bonus_hold_hours: v }); toast(e ?? `Bedenkzeit: ${v} Std.`, e ? 'error' : 'info') } }} aria-label="Bedenkzeit" />
+              </div>
+            </>
+          )}
+        </div>
+      )}
 
       {isAdmin && (
         <div className="card">

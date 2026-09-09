@@ -25,11 +25,15 @@ const STATUS_LABEL: Record<Task['status'], string> = {
 }
 
 export function TaskDetail({ task, onClose, onEdit }: Props) {
-  const { profile, isAdmin, settings, profileById, categoryIcon, completeTask, reopenTask, claimTask, releaseTask, deleteTask, archiveTask, toast } = useStore()
+  const { profile, isAdmin, settings, profileById, categoryIcon, completeTask, reopenTask, claimTask, releaseTask, deleteTask, archiveTask, bonusInterest, bonusDecide, toast } = useStore()
   const isDone = task.status === 'done' || task.status === 'archived'
   const isMine = !!profile && task.assignee_ids.includes(profile.id)
   const canComplete = !isDone && (isAdmin || isMine)
-  const canClaim = !isDone && task.is_pool && (isAdmin || settings.kids_can_claim_pool)
+  const holdActive = !!task.pool_hold_until && new Date(task.pool_hold_until).getTime() > Date.now()
+  const canClaim = !isDone && task.is_pool && (isAdmin || settings.kids_can_claim_pool) && !(holdActive && !isAdmin)
+  const canInterest = !isDone && task.is_pool && !isAdmin && holdActive && settings.kids_can_claim_pool
+  const interested = !!profile && task.interested_ids.includes(profile.id)
+  const bonus = settings.bonus_enabled && task.bonus_points > 0
   const UNDO_MS = 5 * 60 * 1000
   const canUndo = isDone && !!profile && task.completed_by === profile.id && !!task.completed_at && Date.now() - new Date(task.completed_at).getTime() < UNDO_MS
   const assignees = task.assignee_ids.map((id) => profileById(id)).filter((p): p is NonNullable<typeof p> => !!p)
@@ -95,6 +99,22 @@ export function TaskDetail({ task, onClose, onEdit }: Props) {
               )}
             </span>
           </div>
+          {bonus && (
+            <div className="detail-row">
+              <span className="detail-label">Bonus</span>
+              <span style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <span className="tag bonus" style={{ alignSelf: 'flex-start' }}>
+                  {task.bonus_points} Punkte · {task.bonus_status === 'pending' ? 'wartet auf Bestätigung' : task.bonus_status === 'confirmed' ? 'bestätigt' : task.bonus_status === 'rejected' ? 'zurückgegeben' : 'freiwillige Extra-Aufgabe'}
+                </span>
+                {task.bonus_status === 'rejected' && task.bonus_note && <span className="small" style={{ color: 'var(--prio-important)' }}>Hinweis: {task.bonus_note}</span>}
+                {holdActive && task.is_pool && !isDone && (
+                  <span className="muted small">
+                    Bedenkzeit bis {new Date(task.pool_hold_until as string).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr · danach wird fair verteilt{task.interested_ids.length ? ` (${task.interested_ids.map((id) => profileById(id)?.display_name ?? '').filter(Boolean).join(', ')} interessiert)` : ''}
+                  </span>
+                )}
+              </span>
+            </div>
+          )}
           {settings.priorities_enabled && (
             <div className="detail-row">
               <span className="detail-label">Priorität</span>
@@ -169,10 +189,25 @@ export function TaskDetail({ task, onClose, onEdit }: Props) {
               {busy === 'done' ? 'Wird erledigt…' : 'Erledigen'}
             </button>
           )}
+          {canInterest && (
+            <button className={`btn block ${interested ? 'secondary' : ''}`} onClick={() => run(() => bonusInterest(task.id), false, 'interest')} disabled={!!busy}>
+              {busy === 'interest' ? 'Bitte warten…' : interested ? 'Ich möchte ✓ – Interesse zurückziehen' : 'Ich möchte diese Aufgabe'}
+            </button>
+          )}
           {canClaim && !isMine && (
             <button className="btn block" onClick={() => run(() => claimTask(task.id), true, 'claim')} disabled={!!busy}>
               {busy === 'claim' ? 'Übernehmen…' : 'Ich übernehme'}
             </button>
+          )}
+          {isAdmin && task.bonus_status === 'pending' && (
+            <div className="task-actions">
+              <button className="btn sm" onClick={() => run(() => bonusDecide(task.id, true), true, 'bonus')} disabled={!!busy}>
+                Bonus bestätigen ({task.bonus_points} P)
+              </button>
+              <button className="btn sm secondary" onClick={() => run(() => bonusDecide(task.id, false, 'Bitte noch einmal nachsehen.'), true, 'bonusno')} disabled={!!busy}>
+                Noch nicht
+              </button>
+            </div>
           )}
           {isDone && (isAdmin || canUndo) && (
             <button className="btn secondary block" onClick={() => run(() => reopenTask(task.id))}>

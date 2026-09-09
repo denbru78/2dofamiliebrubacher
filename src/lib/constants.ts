@@ -94,3 +94,21 @@ export function recurrenceLabel(rec: Recurrence, interval: number): string {
 }
 
 export const IMAGE_AVATARS = ['/avatars/papa.png', '/avatars/mama.png', '/avatars/mia.png', '/avatars/leo.png']
+
+/** Bonusstufen (Zusatztaschengeld): Punkte je Stufe */
+export const BONUS_LEVELS: { points: number; label: string; hint: string }[] = [
+  { points: 0, label: 'Kein Bonus', hint: 'Normale Familienpflicht' },
+  { points: 1, label: 'Klein · 1 P', hint: 'bis ca. 10 Min., leicht, bekannt' },
+  { points: 2, label: 'Mittel · 2 P', hint: 'ca. 10–25 Min., weitgehend selbstständig' },
+  { points: 4, label: 'Groß · 4 P', hint: 'ca. 25–45 Min., selbstständig, mehr Verantwortung' },
+  { points: 6, label: 'Extra · 6 P', hint: 'ab ca. 45 Min., besondere Selbstständigkeit oder Verantwortung' },
+]
+
+export const BONUS_MILESTONES: { at: number; text: string }[] = [
+  { at: 5, text: 'Läuft!' },
+  { at: 10, text: 'Stark!' },
+  { at: 20, text: 'Mega!' },
+  { at: 35, text: 'Unfassbar!' },
+  { at: 50, text: 'Legende!' },
+  { at: 100, text: 'Hall of Fame' },
+]

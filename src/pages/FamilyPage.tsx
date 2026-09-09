@@ -14,7 +14,7 @@ interface Props {
 }
 
 export function FamilyPage({ go }: Props) {
-  const { allProfiles, tasks, isAdmin, achievements, settings, familyName } = useStore()
+  const { allProfiles, tasks, isAdmin, achievements, settings, familyName, bonusBalance, profile } = useStore()
   const [editing, setEditing] = useState<Profile | null>(null)
   const [inviting, setInviting] = useState(false)
   const open = useMemo(() => tasks.filter((t) => t.status === 'open' || t.status === 'claimed'), [tasks])
@@ -76,6 +76,24 @@ export function FamilyPage({ go }: Props) {
           </span>
         </div>
       </button>
+
+      {settings.bonus_enabled && (
+        <button className="card card-btn" onClick={() => go('bonus')}>
+          <div className="card-head" style={{ marginBottom: 0 }}>
+            <div>
+              <h2>{isAdmin ? 'Bonus' : 'Mein Bonus'}</h2>
+              <span className="muted small">
+                {isAdmin
+                  ? `${tasks.filter((t) => t.bonus_status === 'pending').length} Bestätigungen offen`
+                  : `${bonusBalance(profile?.id ?? '')} Punkte auf deinem Konto`}
+              </span>
+            </div>
+            <span className="muted">
+              <IconChevron size={16} />
+            </span>
+          </div>
+        </button>
+      )}
 
       {settings.achievements_enabled && (
         <button className="card card-btn" onClick={() => go('achievements')}>

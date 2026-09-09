@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import type { ReactNode } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from './supabase'
-import type { Achievement, Activity, Category, Invite, InvitePreview, Notification, Profile, QuickKeywordRow, Role, Settings, Task, TaskInput, WeeklyResult } from './types'
+import type { Achievement, Activity, BonusLedger, BonusPayout, Category, Invite, InvitePreview, Notification, Profile, QuickKeywordRow, Role, Settings, Task, TaskInput, WeeklyResult } from './types'
 import { clearPendingInvite, getPendingInvite } from './invites'
 import { computeNewUnlocks } from './achievements'
 import { CATEGORIES, categoryEmoji } from './constants'
@@ -78,14 +78,21 @@ interface StoreValue {
   archiveTask: (id: string) => Promise<string | null>
   updateProfile: (patch: { display_name?: string; avatar?: string; color?: string; phone?: string | null }) => Promise<string | null>
   updateMemberProfile: (id: string, patch: { display_name?: string; avatar?: string; role?: Role; active?: boolean; color?: string; phone?: string | null }) => Promise<string | null>
-  updateSettings: (patch: Partial<Pick<Settings, 'priorities_enabled' | 'weekly_goal' | 'kids_can_claim_pool' | 'achievements_enabled' | 'reminders_enabled'>>) => Promise<string | null>
+  updateSettings: (patch: Partial<Pick<Settings, 'priorities_enabled' | 'weekly_goal' | 'kids_can_claim_pool' | 'achievements_enabled' | 'reminders_enabled' | 'bonus_enabled' | 'bonus_point_value' | 'bonus_weekly_budget' | 'bonus_hold_hours'>>) => Promise<string | null>
+  bonusLedger: BonusLedger[]
+  bonusPayouts: BonusPayout[]
+  bonusBalance: (profileId: string) => number
+  bonusDecide: (taskId: string, ok: boolean, note?: string) => Promise<string | null>
+  bonusInterest: (taskId: string) => Promise<string | null>
+  bonusPayoutRequest: (points: number) => Promise<string | null>
+  bonusPayoutDecide: (id: string, ok: boolean) => Promise<string | null>
   profileById: (id: string | null | undefined) => Profile | undefined
   weekProgress: { done: number; total: number; goal: number }
 }
 
 const StoreContext = createContext<StoreValue | null>(null)
 
-const DEFAULT_SETTINGS: Settings = { family_id: '', priorities_enabled: true, weekly_goal: 10, kids_can_claim_pool: true, achievements_enabled: true, reminders_enabled: true }
+const DEFAULT_SETTINGS: Settings = { family_id: '', priorities_enabled: true, weekly_goal: 10, kids_can_claim_pool: true, achievements_enabled: true, reminders_enabled: true, bonus_enabled: false, bonus_point_value: 1, bonus_weekly_budget: 10, bonus_hold_hours: 2 }
 
 const GENERIC = 'Etwas hat nicht geklappt. Bitte versuche es erneut.'
 
@@ -140,6 +147,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [invites, setInvites] = useState<Invite[]>([])
   const [quickKeywords, setQuickKeywords] = useState<QuickKeywordRow[]>([])
+  const [bonusLedger, setBonusLedger] = useState<BonusLedger[]>([])
+  const [bonusPayouts, setBonusPayouts] = useState<BonusPayout[]>([])
   const [inviteError, setInviteError] = useState<string | null>(null)
   const acceptingRef = useRef(false)
   const [tasks, setTasks] = useState<Task[]>([])
@@ -201,6 +210,21 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const nRes = await supabase.from('notifications').select('*').order('created_at', { ascending: false }).limit(100)
       if (!nRes.error) setNotifications((nRes.data ?? []) as Notification[])
       const fRes = await supabase.from('families').select('name').limit(1)
+      const [lRes, payRes] = await Promise.all([
+        supabase.from('bonus_ledger').select('*').order('created_at', { ascending: false }).limit(500),
+        supabase.from('bonus_payouts').select('*').order('requested_at', { ascending: false }).limit(200),
+      ])
+      setBonusLedger(lRes.error ? [] : ((lRes.data ?? []) as BonusLedger[]))
+      setBonusPayouts(payRes.error ? [] : ((payRes.data ?? []) as BonusPayout[]))
+      // Bedenkzeiten im Pool auflösen (Wechselprinzip) – serverseitig, nur wenn Bonus aktiv
+      const settingsRow = (sRes.data ?? [])[0] as Settings | undefined
+      if (settingsRow?.bonus_enabled) {
+        const { data: resolved } = await supabase.rpc('resolve_pool_holds')
+        if (typeof resolved === 'number' && resolved > 0) {
+          const again = await supabase.from('tasks').select('*').order('created_at', { ascending: false }).limit(2000)
+          if (!again.error) setTasks((again.data ?? []) as Task[])
+        }
+      }
       const kRes = await supabase.from('quick_keywords').select('*').order('word')
       setQuickKeywords(kRes.error ? [] : ((kRes.data ?? []) as QuickKeywordRow[]))
       const iRes = await supabase.from('family_invites').select('*').order('created_at', { ascending: false })
@@ -268,6 +292,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, () => reload())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'family_invites' }, () => reload())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'quick_keywords' }, () => reload())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'bonus_ledger' }, () => reload())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'bonus_payouts' }, () => reload())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'weekly_results' }, () => reload())
       .subscribe()
     const onVisible = () => {
@@ -440,6 +466,49 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     return { token: row.token }
   }, [])
 
+  // ---- Bonus ----------------------------------------------------------------
+  const bonusBalance = useCallback((pid: string) => bonusLedger.filter((l) => l.profile_id === pid).reduce((s, l) => s + l.delta, 0), [bonusLedger])
+
+  const bonusDecide = useCallback(
+    async (taskId: string, ok: boolean, note?: string) => {
+      const { error } = await supabase.rpc('bonus_decide', { p_task: taskId, p_ok: ok, p_note: note ?? null })
+      if (error) return errMsg(error)
+      await reload()
+      return null
+    },
+    [reload],
+  )
+
+  const bonusInterest = useCallback(
+    async (taskId: string) => {
+      const { error } = await supabase.rpc('bonus_interest', { p_task: taskId })
+      if (error) return errMsg(error)
+      await reload()
+      return null
+    },
+    [reload],
+  )
+
+  const bonusPayoutRequest = useCallback(
+    async (points: number) => {
+      const { error } = await supabase.rpc('bonus_payout_request', { p_points: points })
+      if (error) return errMsg(error)
+      await reload()
+      return null
+    },
+    [reload],
+  )
+
+  const bonusPayoutDecide = useCallback(
+    async (id: string, ok: boolean) => {
+      const { error } = await supabase.rpc('bonus_payout_decide', { p_payout: id, p_ok: ok })
+      if (error) return errMsg(error)
+      await reload()
+      return null
+    },
+    [reload],
+  )
+
   const addQuickKeyword = useCallback(
     async (word: string, type: 'person' | 'category', value: string) => {
       if (!profile) return 'Nicht angemeldet.'
@@ -491,6 +560,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         recurrence_interval: input.recurrence === 'none' ? 1 : Math.max(1, input.recurrence_interval || 1),
         reminder_type: input.reminder_type,
         ...(input.reminder_type === 'custom' && input.reminder_at ? { reminder_at: input.reminder_at } : {}),
+        bonus_points: [0, 1, 2, 4, 6].includes(input.bonus_points ?? 0) ? (input.bonus_points ?? 0) : 0,
       }
     },
     [profiles],
@@ -575,7 +645,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const { task, error } = await patchTask(id, { status: 'done' })
       if (error) return error
       if (task) {
-        toast('Geschafft!', 'success', {
+        toast(task.bonus_points > 0 && settings.bonus_enabled ? `Geschafft! Mama oder Papa schauen kurz drauf, dann gibt’s deine ${task.bonus_points} Punkte.` : 'Geschafft!', 'success', {
           label: 'Rückgängig',
           onClick: () => {
             void reopenTaskRef.current(id)
@@ -585,7 +655,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       }
       return null
     },
-    [patchTask, toast],
+    [patchTask, toast, settings.bonus_enabled],
   )
 
   const reopenTask = useCallback(
@@ -770,7 +840,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const closeTask = useCallback(() => setDetailTaskId(null), [])
 
   const updateSettings = useCallback(
-    async (patch: Partial<Pick<Settings, 'priorities_enabled' | 'weekly_goal' | 'kids_can_claim_pool' | 'achievements_enabled' | 'reminders_enabled'>>) => {
+    async (patch: Partial<Pick<Settings, 'priorities_enabled' | 'weekly_goal' | 'kids_can_claim_pool' | 'achievements_enabled' | 'reminders_enabled' | 'bonus_enabled' | 'bonus_point_value' | 'bonus_weekly_budget' | 'bonus_hold_hours'>>) => {
       if (!profile) return 'Nicht angemeldet.'
       const { data, error } = await supabase
         .from('settings')
@@ -838,6 +908,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     createInvite,
     revokeInvite,
     inviteError,
+    bonusLedger,
+    bonusPayouts,
+    bonusBalance,
+    bonusDecide,
+    bonusInterest,
+    bonusPayoutRequest,
+    bonusPayoutDecide,
     quickKeywords,
     addQuickKeyword,
     removeQuickKeyword,

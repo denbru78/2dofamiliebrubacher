@@ -2326,3 +2326,36 @@ h2 {
 .quick-wrap {
   margin-bottom: 12px;
 }
+
+/* ---------- Bonus ---------- */
+.tag.bonus {
+  background: #e6efe0;
+  color: #3f6b4e;
+}
+
+.bonus-hero {
+  text-align: center;
+  background: linear-gradient(135deg, #ffffff 0%, #f1f6ee 100%);
+}
+
+.bonus-points {
+  font-size: 52px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--sage-deep);
+  line-height: 1;
+  margin-top: 4px;
+}
+
+.bonus-sub {
+  font-weight: 600;
+  margin: 6px 0 2px;
+}
+
+.bonus-pending {
+  padding: 10px 0;
+}
+
+.bonus-pending + .bonus-pending {
+  border-top: 1px solid var(--line);
+}

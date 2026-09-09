@@ -19,13 +19,17 @@ interface Props {
 }
 
 export function TaskCard({ task, onEdit, compact = false, showHistory = false, showClaim = false }: Props) {
-  const { profile, isAdmin, settings, profileById, categoryIcon, completeTask, reopenTask, claimTask, releaseTask, openTask, toast } = useStore()
+  const { profile, isAdmin, settings, profileById, categoryIcon, completeTask, reopenTask, claimTask, releaseTask, openTask, bonusInterest, toast } = useStore()
   const isDone = task.status === 'done' || task.status === 'archived'
   const isMine = !!profile && task.assignee_ids.includes(profile.id)
   const canComplete = !isDone && (isAdmin || isMine)
   const UNDO_MS = 5 * 60 * 1000
   const canUndo = isDone && !!profile && task.completed_by === profile.id && !!task.completed_at && Date.now() - new Date(task.completed_at).getTime() < UNDO_MS
-  const canClaim = !isDone && task.is_pool && (isAdmin || settings.kids_can_claim_pool)
+  const holdActive = !!task.pool_hold_until && new Date(task.pool_hold_until).getTime() > Date.now()
+  const canClaim = !isDone && task.is_pool && (isAdmin || settings.kids_can_claim_pool) && !(holdActive && !isAdmin)
+  const canInterest = !isDone && task.is_pool && !isAdmin && holdActive && settings.kids_can_claim_pool
+  const interested = !!profile && task.interested_ids.includes(profile.id)
+  const bonus = settings.bonus_enabled && task.bonus_points > 0
   const assignees = task.assignee_ids.map((id) => profileById(id)).filter((p): p is NonNullable<typeof p> => !!p)
   const ds = dueState(task.due_kind, task.due_date)
   const due = dueLabel(task.due_kind, task.due_date)
@@ -91,6 +95,7 @@ export function TaskCard({ task, onEdit, compact = false, showHistory = false, s
                 ))}
               </span>
             )}
+            {bonus && <span className="tag bonus">{task.bonus_points} P{task.bonus_status === 'pending' ? ' · wartet' : task.bonus_status === 'confirmed' ? ' ✓' : ''}</span>}
             {task.is_pool && !isDone && <span className="tag pool">Pool</span>}
             {!isDone && due && <span className={`tag ${ds === 'today' ? 'today' : ds === 'overdue' ? 'overdue' : ''}`}>{dueLabelShort(task.due_kind, task.due_date)}</span>}
             {settings.priorities_enabled && task.priority === 'urgent' && <span className="tag urgent">Dringend</span>}
@@ -100,7 +105,9 @@ export function TaskCard({ task, onEdit, compact = false, showHistory = false, s
         {!compact && task.description && <div className="task-desc">{task.description}</div>}
         {!compact && (
         <div className="task-meta">
+          {bonus && <span className="tag bonus">{task.bonus_points} Punkte{task.bonus_status === 'pending' ? ' · Bonus wartet' : task.bonus_status === 'confirmed' ? ' · bestätigt' : task.bonus_status === 'rejected' ? ' · zurückgegeben' : ''}</span>}
           {task.is_pool && !isDone && <span className="tag pool">Familien-Pool</span>}
+          {holdActive && task.is_pool && !isDone && <span className="tag">Bedenkzeit bis {new Date(task.pool_hold_until as string).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}{task.interested_ids.length ? ` · ${task.interested_ids.length} interessiert` : ''}</span>}
           {!isDone && due && <span className={`tag ${ds === 'today' ? 'today' : ds === 'overdue' ? 'overdue' : ''}`}>{due}</span>}
           {settings.priorities_enabled && task.priority !== 'none' && (
             <span className={`tag ${task.priority}`}>{priorityLabel(task.priority)}</span>
@@ -139,6 +146,13 @@ export function TaskCard({ task, onEdit, compact = false, showHistory = false, s
             {task.status === 'archived' ? ' · archiviert' : ''}
           </div>
         )}
+        {compact && showClaim && canInterest && (
+          <div className="task-actions">
+            <button className={`btn sm ${interested ? 'secondary' : ''}`} onClick={() => run(() => bonusInterest(task.id))} disabled={busy}>
+              {interested ? 'Ich möchte ✓' : 'Ich möchte'}
+            </button>
+          </div>
+        )}
         {compact && showClaim && canClaim && (
           <div className="task-actions">
             <button className="btn sm" onClick={() => run(() => claimTask(task.id))} disabled={busy}>
@@ -146,8 +160,13 @@ export function TaskCard({ task, onEdit, compact = false, showHistory = false, s
             </button>
           </div>
         )}
-        {!compact && !isDone && (canClaim || (isAdmin && !task.is_pool)) && (
+        {!compact && !isDone && (canClaim || canInterest || (isAdmin && !task.is_pool)) && (
           <div className="task-actions">
+            {canInterest && (
+              <button className={`btn sm ${interested ? 'secondary' : ''}`} onClick={() => run(() => bonusInterest(task.id))} disabled={busy}>
+                {interested ? 'Ich möchte ✓ (wird nach der Bedenkzeit verteilt)' : 'Ich möchte'}
+              </button>
+            )}
             {canClaim && (
               <button className="btn sm" onClick={() => run(() => claimTask(task.id))} disabled={busy}>
                 {busy ? 'Übernehmen…' : 'Ich übernehme'}

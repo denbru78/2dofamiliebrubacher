@@ -24,6 +24,35 @@ export interface Settings {
   kids_can_claim_pool: boolean
   achievements_enabled: boolean
   reminders_enabled: boolean
+  bonus_enabled: boolean
+  bonus_point_value: number
+  bonus_weekly_budget: number
+  bonus_hold_hours: number
+}
+
+export type BonusStatus = 'none' | 'pending' | 'confirmed' | 'rejected'
+
+export interface BonusLedger {
+  id: string
+  family_id: string
+  profile_id: string
+  task_id: string | null
+  delta: number
+  kind: 'earned' | 'payout' | 'adjust'
+  note: string | null
+  created_by: string | null
+  created_at: string
+}
+
+export interface BonusPayout {
+  id: string
+  family_id: string
+  profile_id: string
+  points: number
+  status: 'pending' | 'confirmed' | 'rejected'
+  requested_at: string
+  decided_by: string | null
+  decided_at: string | null
 }
 
 export interface Invite {
@@ -90,6 +119,13 @@ export interface Task {
   parent_task_id: string | null
   next_due_date: string | null
   series_template: Record<string, unknown> | null
+  bonus_points: number
+  bonus_status: BonusStatus
+  bonus_note: string | null
+  bonus_decided_by: string | null
+  bonus_decided_at: string | null
+  pool_hold_until: string | null
+  interested_ids: string[]
   created_by: string | null
   created_at: string
   updated_at: string
@@ -142,6 +178,7 @@ export interface TaskInput {
   recurrence_interval: number
   reminder_type: ReminderType
   reminder_at?: string | null
+  bonus_points?: number
 }
 
 export interface QuickKeywordRow {

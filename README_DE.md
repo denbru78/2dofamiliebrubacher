@@ -156,3 +156,13 @@ familien-liste/
 | Familienname | `families.name`; App-Name ist immer „Unser Plan“ |
 
 Statusmodell: `open` (Offen) · `claimed` (Übernommen, logisch offen) · `done` (Erledigt) · `archived` (Archiviert). Überfällig = `due_date < heute` und Status nicht done/archived (berechnet, kein Status). Pool: `is_pool = true` ⇔ `assignee_ids` leer (Trigger). Genau eine Familie pro Nutzerkonto.
+
+## Bonus / Zusatztaschengeld (V1.2, optional)
+
+Einschalten unter Einstellungen → „Bonuspunkte verwenden“ (Eltern). Danach:
+- Beim Anlegen einer Aufgabe wählen Eltern eine Bonusstufe: Klein 1 P · Mittel 2 P · Groß 4 P · Extra 6 P (Kriterien: Aufwand, Selbstständigkeit, Verantwortung). Normale Pflichten bleiben ohne Bonus.
+- 1 Punkt = 1 € (in den Einstellungen änderbar). Kinder sehen den Wert nur über „Was sind meine Punkte wert?“.
+- Erledigt ein Kind eine Bonusaufgabe, bekommen die Eltern „Bonus bestätigen?“; erst mit der Bestätigung landen die Punkte auf dem Konto. „Noch nicht“ gibt die Aufgabe mit Hinweis zurück.
+- Bonusaufgaben im Pool haben eine Bedenkzeit (Standard 2 Std.): Kinder drücken „Ich möchte“, danach verteilt die App fair (wer zuletzt eine Bonus-Pool-Aufgabe bekam, ist hinten dran).
+- Kinder sehen unter Familie → „Mein Bonus“ ihren Punktestand, Wochenplus, Meilensteine und den Verlauf; Auszahlung fragen sie selbst an, Eltern bestätigen. Kein Geschwistervergleich.
+- Eltern sehen unter Familie → „Bonus“ offene Bestätigungen, Auszahlungsanfragen, beide Konten und das Wochenbudget (nur Hinweis, kein Limit).

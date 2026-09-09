@@ -19,6 +19,12 @@ const TYPE_ICON: Record<string, string> = {
   due_today: 'calendar',
   overdue: 'flag',
   digest: 'sun',
+  bonus_pending: 'star',
+  bonus_confirmed: 'star',
+  bonus_rejected: 'flag',
+  payout_request: 'euro',
+  payout_done: 'euro',
+  payout_rejected: 'euro',
 }
 
 export function NotificationsSheet({ onClose }: Props) {

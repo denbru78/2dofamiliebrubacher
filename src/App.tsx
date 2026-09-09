@@ -16,11 +16,12 @@ import { FamilyPage } from './pages/FamilyPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { NoFamilyPage } from './pages/NoFamilyPage'
 import { ResetPasswordPage } from './pages/ResetPasswordPage'
+import { BonusPage } from './pages/BonusPage'
 import { captureInviteFromUrl } from './lib/invites'
 
 captureInviteFromUrl()
 
-export type View = 'start' | 'tasks' | 'pool' | 'achievements' | 'family' | 'settings'
+export type View = 'start' | 'tasks' | 'pool' | 'achievements' | 'family' | 'settings' | 'bonus'
 
 export default function App() {
   const { session, authLoading, profile, dataLoading, dataError, isAdmin, reload, signOut, tasks, detailTaskId, closeTask, recovery } = useStore()
@@ -160,6 +161,7 @@ export default function App() {
       {view === 'pool' && <PoolPage onEdit={openEdit} onBack={() => go('start')} />}
       {view === 'achievements' && <AchievementsPage onBack={() => go('start')} />}
       {view === 'family' && <FamilyPage go={go} />}
+      {view === 'bonus' && <BonusPage onBack={() => go('family')} />}
       {view === 'settings' && <SettingsPage />}
 
       {isAdmin && !formOpen && (

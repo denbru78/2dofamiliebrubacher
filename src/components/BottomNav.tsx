@@ -11,7 +11,7 @@ export function BottomNav({ view, onChange }: Props) {
   const items: { key: View; label: string; icon: ReactNode; matches: View[] }[] = [
     { key: 'start', label: 'Unser Plan', icon: <AppIcon name="home" />, matches: ['start', 'pool', 'achievements'] },
     { key: 'tasks', label: 'Aufgaben', icon: <AppIcon name="clipboard" />, matches: ['tasks'] },
-    { key: 'family', label: 'Familie', icon: <AppIcon name="family" />, matches: ['family'] },
+    { key: 'family', label: 'Familie', icon: <AppIcon name="family" />, matches: ['family', 'bonus'] },
     { key: 'settings', label: 'Einstellungen', icon: <AppIcon name="gear" />, matches: ['settings'] },
   ]
   return (
